@@ -10,6 +10,7 @@ import { Player } from './Player';
 import { Enemy } from './Enemy';
 import { OtherPlayer } from './OtherPlayer';
 import { LetterCube } from './LetterCube';
+import { NPC } from './NPC';
 import { Effects } from './Effects';
 import { useGameStore } from '../store';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -83,6 +84,7 @@ export function Game() {
       <Physics gravity={[0, -20, 0]}>
         <GameLoop />
         <Arena />
+        <NPC />
         <Player />
         {enemies.map(enemy => (
           <Enemy key={enemy.id} data={enemy} />

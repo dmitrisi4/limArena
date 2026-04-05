@@ -78,14 +78,16 @@ interface GameStore {
   particles: ParticleData[];
   events: GameEvent[];
   
-  // Quest System
+  // Quest & Inventory System
   currentQuest: Quest | null;
   letters: LetterData[];
+  inventory: string[];
   lessonIndex: number;
   totalLessons: number;
   collectLetter: (id: string) => void;
   dropLetter: (position: [number, number, number], letter: string) => void;
   startNextLesson: () => void;
+  craftWord: () => void;
   
   // Multiplayer
   socket: Socket | null;
@@ -153,6 +155,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   currentQuest: null,
   letters: [],
+  inventory: [],
   lessonIndex: 0,
   totalLessons: LESSON_WORDS.length,
 
@@ -186,20 +189,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
       delete otherPlayers[newSocket!.id!];
       
       const targetWord = LESSON_WORDS[0];
-      const initialLetters: LetterData[] = targetWord.split('').slice(0, 2).map((l, i) => ({
+      const initialLetters: LetterData[] = Array.from({ length: 10 }).map((_, i) => ({
         id: `letter-init-${i}`,
-        position: [(Math.random() - 0.5) * 100, 1, (Math.random() - 0.5) * 100],
-        letter: l,
+        position: [(Math.random() - 0.5) * 300, 1, (Math.random() - 0.5) * 300],
+        letter: String.fromCharCode(65 + Math.floor(Math.random() * 26)),
         collected: false
       }));
 
       set({ 
         otherPlayers,
         gameState: 'playing',
-        timeLeft: 300, // 5 minutes for full lesson
+        timeLeft: 600, // 10 minutes
         score: 0,
         enemies: INITIAL_ENEMIES.map(e => ({ ...e, state: 'active', disabledUntil: 0 })),
         lessonIndex: 0,
+        inventory: [],
         currentQuest: {
           id: 'quest-0',
           title: `LESSON 1: ${targetWord}`,
@@ -307,18 +311,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         });
       });
     const targetWord = LESSON_WORDS[0];
-    // Spawn only 2 letters initially, others will drop from enemies
-    const initialLetters: LetterData[] = targetWord.split('').slice(0, 2).map((l, i) => ({
+    const initialLetters: LetterData[] = Array.from({ length: 10 }).map((_, i) => ({
       id: `letter-init-${i}`,
-      position: [(Math.random() - 0.5) * 100, 1, (Math.random() - 0.5) * 100],
-      letter: l,
+      position: [(Math.random() - 0.5) * 300, 1, (Math.random() - 0.5) * 300],
+      letter: String.fromCharCode(65 + Math.floor(Math.random() * 26)),
       collected: false
     }));
 
     set({
       gameState: 'playing',
       score: 0,
-      timeLeft: 300,
+      timeLeft: 600,
       playerState: 'active',
       playerDisabledUntil: 0,
       enemies: INITIAL_ENEMIES.map(e => ({ ...e, state: 'active', disabledUntil: 0 })),
@@ -328,6 +331,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       socket: newSocket,
       otherPlayers: {},
       lessonIndex: 0,
+      inventory: [],
       currentQuest: {
         id: 'quest-0',
         title: `LESSON 1: ${targetWord}`,
@@ -397,20 +401,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const enemies = state.enemies.map(e => {
       if (e.id === id && e.state === 'active') {
-        // Drop a letter if needed
-        if (state.currentQuest && !state.currentQuest.isCompleted) {
-          const neededLetters = state.currentQuest.targetWord.split('').filter(char => {
-            const countInTarget = state.currentQuest!.targetWord.split('').filter(c => c === char).length;
-            const countInCollected = state.currentQuest!.collectedLetters.filter(c => c === char).length;
-            return countInCollected < countInTarget;
-          });
-
-          if (neededLetters.length > 0 && Math.random() > 0.3) {
-            const randomLetter = neededLetters[Math.floor(Math.random() * neededLetters.length)];
-            // Use setTimeout to avoid state update during render/physics step if needed, 
-            // but zustand set is usually fine here.
-            setTimeout(() => get().dropLetter(e.position, randomLetter), 0);
-          }
+        // Drop a random letter
+        if (Math.random() > 0.3) {
+          const randomLetter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+          setTimeout(() => get().dropLetter(e.position, randomLetter), 0);
         }
         return { ...e, state: 'disabled' as EntityState, disabledUntil: Date.now() + 3000 };
       }
@@ -484,36 +478,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   collectLetter: (id) => set((state) => {
     const letter = state.letters.find(l => l.id === id);
-    if (!letter || letter.collected || !state.currentQuest) return state;
+    if (!letter || letter.collected) return state;
 
     const newLetters = state.letters.map(l => l.id === id ? { ...l, collected: true } : l);
-    const newCollected = [...state.currentQuest.collectedLetters, letter.letter];
+    const newInventory = [...state.inventory, letter.letter];
     
-    // Check if quest completed
-    const isCompleted = state.currentQuest.targetWord.split('').every(char => 
-      newCollected.filter(c => c === char).length >= state.currentQuest!.targetWord.split('').filter(c => c === char).length
-    );
-
-    if (isCompleted) {
-      setTimeout(() => get().addParticles(letter.position, '#fcd34d'), 0);
-      
-      // Auto start next lesson after a delay
-      setTimeout(() => get().startNextLesson(), 2000);
-
-      return {
-        letters: newLetters,
-        score: state.score + 500,
-        currentQuest: { ...state.currentQuest, collectedLetters: newCollected, isCompleted: true },
-        events: [...state.events, { id: Math.random().toString(), message: `EXCELLENT! ${state.currentQuest.targetWord} completed!`, timestamp: Date.now() }]
-      };
-    }
-
     setTimeout(() => get().addParticles(letter.position, '#fcd34d'), 0);
     return {
       letters: newLetters,
-      score: state.score + 50,
-      currentQuest: { ...state.currentQuest, collectedLetters: newCollected },
-      events: [...state.events, { id: Math.random().toString(), message: `COLLECTED: ${letter.letter}`, timestamp: Date.now() }]
+      inventory: newInventory,
+      score: state.score + 10,
+      events: [...state.events, { id: Math.random().toString(), message: `PICKED UP: ${letter.letter}`, timestamp: Date.now() }]
     };
   }),
 
@@ -524,13 +499,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       letter,
       collected: false
     }],
-    events: [...state.events, { id: Math.random().toString(), message: `ENEMY DROPPED LETTER: ${letter}`, timestamp: Date.now() }]
+    events: [...state.events, { id: Math.random().toString(), message: `ENEMY DROPPED: ${letter}`, timestamp: Date.now() }]
   })),
 
   startNextLesson: () => set((state) => {
     const nextIndex = state.lessonIndex + 1;
     if (nextIndex >= LESSON_WORDS.length) {
-      // All lessons complete!
       return {
         events: [...state.events, { id: Math.random().toString(), message: "CONGRATULATIONS! ALL LESSONS COMPLETE!", timestamp: Date.now() }],
         score: state.score + 1000,
@@ -547,13 +521,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       "LEARN": "Изучать"
     };
 
-    const initialLetters: LetterData[] = nextWord.split('').slice(0, 2).map((l, i) => ({
-      id: `letter-next-${nextIndex}-${i}`,
-      position: [(Math.random() - 0.5) * 100, 1, (Math.random() - 0.5) * 100],
-      letter: l,
-      collected: false
-    }));
-
     return {
       lessonIndex: nextIndex,
       currentQuest: {
@@ -564,9 +531,42 @@ export const useGameStore = create<GameStore>((set, get) => ({
         collectedLetters: [],
         isCompleted: false
       },
-      letters: initialLetters,
       events: [...state.events, { id: Math.random().toString(), message: `NEW LESSON: ${nextWord}`, timestamp: Date.now() }]
     };
+  }),
+
+  craftWord: () => set((state) => {
+    if (!state.currentQuest || state.currentQuest.isCompleted) return state;
+    
+    const target = state.currentQuest.targetWord;
+    const inv = [...state.inventory];
+    const collected: string[] = [];
+    let canCraft = true;
+
+    for (const char of target) {
+      const index = inv.indexOf(char);
+      if (index !== -1) {
+        inv.splice(index, 1);
+        collected.push(char);
+      } else {
+        canCraft = false;
+        break;
+      }
+    }
+
+    if (canCraft) {
+      setTimeout(() => get().startNextLesson(), 2000);
+      return {
+        inventory: inv,
+        score: state.score + 500,
+        currentQuest: { ...state.currentQuest, collectedLetters: collected, isCompleted: true },
+        events: [...state.events, { id: Math.random().toString(), message: `EXCELLENT! ${target} crafted!`, timestamp: Date.now() }]
+      };
+    } else {
+      return {
+        events: [...state.events, { id: Math.random().toString(), message: `NOT ENOUGH LETTERS FOR ${target}`, timestamp: Date.now() }]
+      };
+    }
   }),
 
   updatePlayerPosition: (position, rotation) => {

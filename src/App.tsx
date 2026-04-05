@@ -22,6 +22,8 @@ function HUD() {
   const leaveGame = useGameStore(state => state.leaveGame);
   const isMobile = useIsMobile();
 
+  const inventory = useGameStore(state => state.inventory);
+
   return (
     <>
       {/* Crosshair */}
@@ -57,7 +59,7 @@ function HUD() {
         
         {/* Quest List - Duolingo Style */}
         <div className="bg-white border-b-4 border-r-4 border-[#e5e5e5] p-4 rounded-2xl w-64 flex flex-col gap-2 shadow-sm">
-          <div className="text-[#afafaf] text-[10px] font-black uppercase tracking-widest">Current Lesson</div>
+          <div className="text-[#afafaf] text-[10px] font-black uppercase tracking-widest">Target Word</div>
           {currentQuest ? (
             <div className="flex flex-col gap-1">
               <div className="text-[#4b4b4b] font-black text-lg leading-tight">{currentQuest.title}</div>
@@ -68,40 +70,51 @@ function HUD() {
               {/* Progress */}
               <div className="mt-3 flex flex-col gap-2">
                 <div className="flex justify-between text-[10px] text-[#afafaf] font-black">
-                  <span>WORD PROGRESS</span>
-                  <span>{currentQuest.collectedLetters.length} / {currentQuest.targetWord.length}</span>
+                  <span>CRAFTING PROGRESS</span>
+                  <span>{inventory.filter(l => currentQuest.targetWord.includes(l)).length} / {currentQuest.targetWord.length}</span>
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
                   {currentQuest.targetWord.split('').map((char, i) => {
                     const countInTargetBefore = currentQuest.targetWord.slice(0, i + 1).split('').filter(c => c === char).length;
-                    const countInCollected = currentQuest.collectedLetters.filter(c => c === char).length;
-                    const isCollected = countInCollected >= countInTargetBefore;
+                    const countInInventory = inventory.filter(c => c === char).length;
+                    const isAvailable = countInInventory >= countInTargetBefore;
 
                     return (
                       <div 
                         key={i} 
                         className={`w-7 h-8 flex items-center justify-center border-b-4 text-sm font-black rounded-xl transition-all duration-300 ${
-                          isCollected 
+                          isAvailable 
                             ? 'bg-[#58cc02] border-[#46a302] text-white' 
                             : 'bg-white border-[#e5e5e5] text-[#afafaf]'
                         }`}
                       >
-                        {isCollected ? char : '_'}
+                        {char}
                       </div>
                     );
                   })}
                 </div>
               </div>
               
-              {currentQuest.isCompleted && (
-                <div className="mt-3 bg-[#d7ffb8] text-[#58cc02] p-2 rounded-xl border-2 border-[#b8f28b] text-center font-black text-xs animate-bounce">
-                  YOU'RE DOING GREAT!
-                </div>
-              )}
+              <div className="mt-2 text-[10px] text-[#afafaf] font-bold text-center">
+                FIND THE DUO CRAFTER AT CENTER
+              </div>
             </div>
           ) : (
             <div className="text-[#afafaf] text-[10px] font-black">LESSON COMPLETE</div>
           )}
+        </div>
+
+        {/* Inventory */}
+        <div className="bg-white border-b-4 border-r-4 border-[#e5e5e5] p-4 rounded-2xl w-64 flex flex-col gap-2 shadow-sm">
+          <div className="text-[#afafaf] text-[10px] font-black uppercase tracking-widest">Inventory</div>
+          <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto pr-1">
+            {inventory.length === 0 && <div className="text-[#afafaf] text-xs italic">Empty...</div>}
+            {inventory.map((letter, i) => (
+              <div key={i} className="w-6 h-6 flex items-center justify-center bg-[#f7f7f7] border-2 border-[#e5e5e5] rounded-lg text-[10px] font-black text-[#4b4b4b]">
+                {letter}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
       

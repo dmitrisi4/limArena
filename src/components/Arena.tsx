@@ -41,13 +41,13 @@ function mulberry32(a: number) {
 }
 const rng = mulberry32(12345);
 
-const OBSTACLES = Array.from({ length: 150 }).map(() => {
+const OBSTACLES = Array.from({ length: 300 }).map(() => {
   const type = 'box';
-  const x = (rng() - 0.5) * 170; // Avoid edges
-  const z = (rng() - 0.5) * 170;
+  const x = (rng() - 0.5) * 370; // Larger map
+  const z = (rng() - 0.5) * 370;
   
   // Keep center somewhat clear
-  if (Math.abs(x) < 20 && Math.abs(z) < 20) return null;
+  if (Math.abs(x) < 30 && Math.abs(z) < 30) return null;
 
   const height = rng() * 8 + 6;
   const isHorizontal = rng() > 0.5;
@@ -63,14 +63,14 @@ export function Arena() {
   const isMobile = useIsMobile();
   
   const obstacles = useMemo(() => {
-    const count = isMobile ? 60 : 150;
+    const count = isMobile ? 100 : 300;
     const rngLocal = mulberry32(12345);
     return Array.from({ length: count }).map(() => {
       const type = 'box';
-      const x = (rngLocal() - 0.5) * 170;
-      const z = (rngLocal() - 0.5) * 170;
+      const x = (rngLocal() - 0.5) * 370;
+      const z = (rngLocal() - 0.5) * 370;
       
-      if (Math.abs(x) < 20 && Math.abs(z) < 20) return null;
+      if (Math.abs(x) < 30 && Math.abs(z) < 30) return null;
 
       const height = rngLocal() * 8 + 6;
       const isHorizontal = rngLocal() > 0.5;
@@ -87,16 +87,16 @@ export function Arena() {
       {/* Floor */}
       <RigidBody type="fixed" name="floor" friction={0}>
         <mesh receiveShadow={!isMobile} position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[200, 200]} />
+          <planeGeometry args={[400, 400]} />
           <meshStandardMaterial color="#050510" roughness={0.2} metalness={0.8} />
         </mesh>
       </RigidBody>
-      <Grid position={[0, -0.49, 0]} args={[200, 200]} cellColor="#ff00ff" sectionColor="#00ffff" fadeDistance={100} cellThickness={0.5} sectionThickness={1.5} />
+      <Grid position={[0, -0.49, 0]} args={[400, 400]} cellColor="#ff00ff" sectionColor="#00ffff" fadeDistance={200} cellThickness={0.5} sectionThickness={1.5} />
 
       {/* Ceiling */}
       <RigidBody type="fixed" name="ceiling">
         <mesh receiveShadow={!isMobile} position={[0, 20, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[200, 200]} />
+          <planeGeometry args={[400, 400]} />
           <meshStandardMaterial color="#000000" roughness={1} />
         </mesh>
       </RigidBody>
@@ -104,16 +104,16 @@ export function Arena() {
       {/* Atmosphere */}
       {!isMobile && (
         <>
-          <Stars radius={100} depth={50} count={5000} factor={4} saturation={1} fade speed={1} />
+          <Stars radius={200} depth={100} count={10000} factor={4} saturation={1} fade speed={1} />
           <AmbientParticles />
         </>
       )}
 
       {/* Walls */}
-      <Wall name="wall-n" position={[0, 5, -100]} rotation={[0, 0, 0]} isMobile={isMobile} />
-      <Wall name="wall-s" position={[0, 5, 100]} rotation={[0, Math.PI, 0]} isMobile={isMobile} />
-      <Wall name="wall-e" position={[100, 5, 0]} rotation={[0, -Math.PI / 2, 0]} isMobile={isMobile} />
-      <Wall name="wall-w" position={[-100, 5, 0]} rotation={[0, Math.PI / 2, 0]} isMobile={isMobile} />
+      <Wall name="wall-n" position={[0, 5, -200]} rotation={[0, 0, 0]} isMobile={isMobile} />
+      <Wall name="wall-s" position={[0, 5, 200]} rotation={[0, Math.PI, 0]} isMobile={isMobile} />
+      <Wall name="wall-e" position={[200, 5, 0]} rotation={[0, -Math.PI / 2, 0]} isMobile={isMobile} />
+      <Wall name="wall-w" position={[-200, 5, 0]} rotation={[0, Math.PI / 2, 0]} isMobile={isMobile} />
 
       {/* Obstacles */}
       {obstacles.map((obs, i) => {
