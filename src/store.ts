@@ -65,6 +65,8 @@ export interface Quest {
   isCompleted: boolean;
 }
 
+const LESSON_WORDS = ["APPLE", "HELLO", "GREEN", "STUDY", "LEARN"];
+
 interface GameStore {
   gameState: GameState;
   score: number;
@@ -79,8 +81,11 @@ interface GameStore {
   // Quest System
   currentQuest: Quest | null;
   letters: LetterData[];
+  lessonIndex: number;
+  totalLessons: number;
   collectLetter: (id: string) => void;
   dropLetter: (position: [number, number, number], letter: string) => void;
+  startNextLesson: () => void;
   
   // Multiplayer
   socket: Socket | null;
@@ -148,6 +153,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   currentQuest: null,
   letters: [],
+  lessonIndex: 0,
+  totalLessons: LESSON_WORDS.length,
 
   setMobileInput: (input) => set((state) => ({
     mobileInput: { ...state.mobileInput, ...input }
@@ -178,10 +185,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const otherPlayers = { ...players };
       delete otherPlayers[newSocket!.id!];
       
-      const targetWord = "APPLE";
-      const letters: LetterData[] = targetWord.split('').map((l, i) => ({
-        id: `letter-${i}`,
-        position: [(Math.random() - 0.5) * 150, 1, (Math.random() - 0.5) * 150],
+      const targetWord = LESSON_WORDS[0];
+      const initialLetters: LetterData[] = targetWord.split('').slice(0, 2).map((l, i) => ({
+        id: `letter-init-${i}`,
+        position: [(Math.random() - 0.5) * 100, 1, (Math.random() - 0.5) * 100],
         letter: l,
         collected: false
       }));
@@ -189,18 +196,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ 
         otherPlayers,
         gameState: 'playing',
-        timeLeft: 120,
+        timeLeft: 300, // 5 minutes for full lesson
         score: 0,
         enemies: INITIAL_ENEMIES.map(e => ({ ...e, state: 'active', disabledUntil: 0 })),
+        lessonIndex: 0,
         currentQuest: {
-          id: 'quest-1',
-          title: 'COLLECT WORD',
-          description: `Find letters to form: ${targetWord}`,
+          id: 'quest-0',
+          title: `LESSON 1: ${targetWord}`,
+          description: `Translate: Яблоко`,
           targetWord,
           collectedLetters: [],
           isCompleted: false
         },
-        letters
+        letters: initialLetters
       });
     });
 
@@ -298,7 +306,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           };
         });
       });
-    const targetWord = "APPLE";
+    const targetWord = LESSON_WORDS[0];
     // Spawn only 2 letters initially, others will drop from enemies
     const initialLetters: LetterData[] = targetWord.split('').slice(0, 2).map((l, i) => ({
       id: `letter-init-${i}`,
@@ -310,7 +318,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       gameState: 'playing',
       score: 0,
-      timeLeft: 120,
+      timeLeft: 300,
       playerState: 'active',
       playerDisabledUntil: 0,
       enemies: INITIAL_ENEMIES.map(e => ({ ...e, state: 'active', disabledUntil: 0 })),
@@ -319,10 +327,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       events: [],
       socket: newSocket,
       otherPlayers: {},
+      lessonIndex: 0,
       currentQuest: {
-        id: 'quest-1',
-        title: 'COLLECT WORD',
-        description: `Find letters to form: ${targetWord}`,
+        id: 'quest-0',
+        title: `LESSON 1: ${targetWord}`,
+        description: `Translate: Яблоко`,
         targetWord: targetWord,
         collectedLetters: [],
         isCompleted: false
@@ -487,11 +496,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     if (isCompleted) {
       setTimeout(() => get().addParticles(letter.position, '#fcd34d'), 0);
+      
+      // Auto start next lesson after a delay
+      setTimeout(() => get().startNextLesson(), 2000);
+
       return {
         letters: newLetters,
         score: state.score + 500,
         currentQuest: { ...state.currentQuest, collectedLetters: newCollected, isCompleted: true },
-        events: [...state.events, { id: Math.random().toString(), message: `QUEST COMPLETE: ${state.currentQuest.targetWord}`, timestamp: Date.now() }]
+        events: [...state.events, { id: Math.random().toString(), message: `EXCELLENT! ${state.currentQuest.targetWord} completed!`, timestamp: Date.now() }]
       };
     }
 
@@ -513,6 +526,48 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }],
     events: [...state.events, { id: Math.random().toString(), message: `ENEMY DROPPED LETTER: ${letter}`, timestamp: Date.now() }]
   })),
+
+  startNextLesson: () => set((state) => {
+    const nextIndex = state.lessonIndex + 1;
+    if (nextIndex >= LESSON_WORDS.length) {
+      // All lessons complete!
+      return {
+        events: [...state.events, { id: Math.random().toString(), message: "CONGRATULATIONS! ALL LESSONS COMPLETE!", timestamp: Date.now() }],
+        score: state.score + 1000,
+        gameState: 'gameover'
+      };
+    }
+
+    const nextWord = LESSON_WORDS[nextIndex];
+    const translations: Record<string, string> = {
+      "APPLE": "Яблоко",
+      "HELLO": "Привет",
+      "GREEN": "Зеленый",
+      "STUDY": "Учиться",
+      "LEARN": "Изучать"
+    };
+
+    const initialLetters: LetterData[] = nextWord.split('').slice(0, 2).map((l, i) => ({
+      id: `letter-next-${nextIndex}-${i}`,
+      position: [(Math.random() - 0.5) * 100, 1, (Math.random() - 0.5) * 100],
+      letter: l,
+      collected: false
+    }));
+
+    return {
+      lessonIndex: nextIndex,
+      currentQuest: {
+        id: `quest-${nextIndex}`,
+        title: `LESSON ${nextIndex + 1}: ${nextWord}`,
+        description: `Translate: ${translations[nextWord] || nextWord}`,
+        targetWord: nextWord,
+        collectedLetters: [],
+        isCompleted: false
+      },
+      letters: initialLetters,
+      events: [...state.events, { id: Math.random().toString(), message: `NEW LESSON: ${nextWord}`, timestamp: Date.now() }]
+    };
+  }),
 
   updatePlayerPosition: (position, rotation) => {
     const { socket } = get();

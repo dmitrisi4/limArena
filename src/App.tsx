@@ -16,6 +16,8 @@ function HUD() {
   const otherPlayers = useGameStore(state => state.otherPlayers);
   const events = useGameStore(state => state.events);
   const currentQuest = useGameStore(state => state.currentQuest);
+  const lessonIndex = useGameStore(state => state.lessonIndex);
+  const totalLessons = useGameStore(state => state.totalLessons);
   const playerCount = Object.keys(otherPlayers).length + 1;
   const leaveGame = useGameStore(state => state.leaveGame);
   const isMobile = useIsMobile();
@@ -31,37 +33,46 @@ function HUD() {
         {!isMobile && <div className="mt-4 text-cyan-400/50 text-xs tracking-widest font-bold">CLICK TO AIM</div>}
       </div>
 
+      {/* HUD Top - Lesson Progress Bar */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-full max-w-md px-4 pointer-events-none">
+        <div className="flex items-center gap-4">
+          <div className="text-[#58cc02] font-black text-xl drop-shadow-sm">DuoTag</div>
+          <div className="flex-1 h-4 bg-[#e5e5e5] rounded-full overflow-hidden border-2 border-[#e5e5e5]">
+            <div 
+              className="h-full bg-[#58cc02] transition-all duration-1000 ease-out" 
+              style={{ width: `${((lessonIndex) / totalLessons) * 100}%` }}
+            >
+              <div className="w-full h-1/3 bg-white/20" />
+            </div>
+          </div>
+          <div className="text-white font-bold text-sm">{lessonIndex}/{totalLessons}</div>
+        </div>
+      </div>
+
       {/* HUD Left - Score & Quests */}
-      <div className="absolute top-2 left-2 md:top-4 md:left-4 flex flex-col gap-2 md:gap-4 pointer-events-none">
-        <div className="text-cyan-400 text-lg md:text-2xl font-bold drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">
-          SCORE: {score.toString().padStart(4, '0')}
+      <div className="absolute top-16 left-2 md:top-20 md:left-4 flex flex-col gap-2 md:gap-4 pointer-events-none">
+        <div className="text-[#58cc02] text-lg md:text-2xl font-black drop-shadow-sm">
+          XP: {score}
         </div>
         
-        {/* Quest List */}
-        <div className="bg-black/50 border border-cyan-900/50 p-3 rounded w-64 flex flex-col gap-2">
-          <div className="text-cyan-400/70 text-xs font-bold mb-1 border-b border-cyan-900/50 pb-1 uppercase tracking-widest">Active Quests</div>
+        {/* Quest List - Duolingo Style */}
+        <div className="bg-white border-b-4 border-r-4 border-[#e5e5e5] p-4 rounded-2xl w-64 flex flex-col gap-2 shadow-sm">
+          <div className="text-[#afafaf] text-[10px] font-black uppercase tracking-widest">Current Lesson</div>
           {currentQuest ? (
             <div className="flex flex-col gap-1">
-              <div className="text-cyan-400 font-bold text-sm">{currentQuest.title}</div>
-              <div className="text-cyan-400/70 text-[10px] leading-tight">{currentQuest.description}</div>
+              <div className="text-[#4b4b4b] font-black text-lg leading-tight">{currentQuest.title}</div>
+              <div className="text-[#777777] text-sm font-bold bg-[#f7f7f7] p-2 rounded-xl border-2 border-[#e5e5e5] mt-1 italic">
+                "{currentQuest.description}"
+              </div>
               
               {/* Progress */}
-              <div className="mt-2 flex flex-col gap-1">
-                <div className="flex justify-between text-[10px] text-cyan-400/50 font-bold">
-                  <span>PROGRESS</span>
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="flex justify-between text-[10px] text-[#afafaf] font-black">
+                  <span>WORD PROGRESS</span>
                   <span>{currentQuest.collectedLetters.length} / {currentQuest.targetWord.length}</span>
                 </div>
-                <div className="h-1 w-full bg-cyan-900/30 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-cyan-400 transition-all duration-500" 
-                    style={{ width: `${(currentQuest.collectedLetters.length / currentQuest.targetWord.length) * 100}%` }}
-                  />
-                </div>
-                <div className="flex gap-1 mt-1 flex-wrap">
+                <div className="flex gap-1.5 flex-wrap">
                   {currentQuest.targetWord.split('').map((char, i) => {
-                    // This logic is a bit simple, it just highlights letters that have been collected
-                    // To be more accurate, we'd need to track which specific index was collected
-                    // But for "APPLE", if we have one 'P', we highlight one 'P'.
                     const countInTargetBefore = currentQuest.targetWord.slice(0, i + 1).split('').filter(c => c === char).length;
                     const countInCollected = currentQuest.collectedLetters.filter(c => c === char).length;
                     const isCollected = countInCollected >= countInTargetBefore;
@@ -69,13 +80,13 @@ function HUD() {
                     return (
                       <div 
                         key={i} 
-                        className={`w-5 h-5 flex items-center justify-center border text-[10px] font-bold rounded ${
+                        className={`w-7 h-8 flex items-center justify-center border-b-4 text-sm font-black rounded-xl transition-all duration-300 ${
                           isCollected 
-                            ? 'bg-cyan-400 border-cyan-400 text-black' 
-                            : 'border-cyan-900/50 text-cyan-900'
+                            ? 'bg-[#58cc02] border-[#46a302] text-white' 
+                            : 'bg-white border-[#e5e5e5] text-[#afafaf]'
                         }`}
                       >
-                        {char}
+                        {isCollected ? char : '_'}
                       </div>
                     );
                   })}
@@ -83,13 +94,13 @@ function HUD() {
               </div>
               
               {currentQuest.isCompleted && (
-                <div className="mt-2 text-fuchsia-400 text-[10px] font-bold animate-bounce">
-                  QUEST COMPLETE! +500 PTS
+                <div className="mt-3 bg-[#d7ffb8] text-[#58cc02] p-2 rounded-xl border-2 border-[#b8f28b] text-center font-black text-xs animate-bounce">
+                  YOU'RE DOING GREAT!
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-cyan-400/30 text-[10px]">NO ACTIVE QUESTS</div>
+            <div className="text-[#afafaf] text-[10px] font-black">LESSON COMPLETE</div>
           )}
         </div>
       </div>
@@ -201,18 +212,21 @@ export default function App() {
 
       {gameState === 'gameover' && (
         <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10 pointer-events-auto">
-          <h1 className="text-6xl font-black text-red-500 mb-4 drop-shadow-[0_0_20px_rgba(239,68,68,0.8)] tracking-tighter">
-            GAME OVER
+          <h1 className="text-6xl font-black text-[#58cc02] mb-4 drop-shadow-[0_0_20px_rgba(88,204,2,0.8)] tracking-tighter">
+            LESSON COMPLETE!
           </h1>
-          <div className="text-3xl text-cyan-400 mb-8 font-bold">
-            FINAL SCORE: {score}
+          <div className="text-3xl text-white mb-2 font-black">
+            TOTAL XP: {score}
+          </div>
+          <div className="text-xl text-[#afafaf] mb-8 font-bold">
+            Lessons Mastered: {useGameStore.getState().lessonIndex} / {useGameStore.getState().totalLessons}
           </div>
           <button
             id="start-button"
             onClick={() => startGame()}
-            className="px-8 py-4 bg-cyan-500/20 border-2 border-cyan-400 text-cyan-400 text-xl font-bold rounded hover:bg-cyan-400 hover:text-black transition-all duration-200"
+            className="px-8 py-4 bg-[#58cc02] border-b-4 border-[#46a302] text-white text-xl font-black rounded-2xl hover:brightness-110 transition-all duration-200"
           >
-            PLAY AGAIN
+            START NEW SESSION
           </button>
         </div>
       )}
