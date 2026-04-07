@@ -125,7 +125,7 @@ export function Enemy({ data }: { data: EnemyData }) {
             const userData = rb.userData as { name?: string };
             if (userData.name === 'player') {
               // Hit player!
-              hitPlayer();
+              hitPlayer([camera.position.x, camera.position.y, camera.position.z]);
               addParticles([camera.position.x, camera.position.y, camera.position.z], '#ff0000');
               addLaser(
                 [startPos.x, startPos.y, startPos.z],

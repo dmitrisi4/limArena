@@ -5,6 +5,7 @@
 
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
+import { Component, ReactNode } from 'react';
 import { Arena } from './Arena';
 import { Player } from './Player';
 import { Enemy } from './Enemy';
@@ -15,27 +16,41 @@ import { Effects } from './Effects';
 import { useGameStore } from '../store';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useShallow } from 'zustand/react/shallow';
-import { useState, useEffect } from 'react';
+import { useIsMobile } from '../lib/useIsMobile';
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    const uaMatch = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-    return uaMatch || coarsePointer || window.innerWidth < 768;
-  });
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
-  useEffect(() => {
-    const check = () => {
-      const uaMatch = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-      setIsMobile(uaMatch || coarsePointer || window.innerWidth < 768);
-    };
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
 
-  return isMobile;
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Game Error Boundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 flex items-center justify-center bg-black text-white p-8 text-center z-[1000]">
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Something went wrong in the 3D engine.</h2>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-cyan-500 rounded hover:bg-cyan-600 transition-colors"
+            >
+              Reload Game
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 function GameLoop() {
@@ -61,11 +76,12 @@ export function Game() {
   const isMobile = useIsMobile();
 
   return (
-    <Canvas 
-      shadows={!isMobile} 
-      camera={{ fov: 75 }}
-      dpr={isMobile ? [1, 1.5] : [1, 2]} // Lower DPR for mobile performance
-    >
+    <ErrorBoundary>
+      <Canvas 
+        shadows={!isMobile} 
+        camera={{ fov: 75 }}
+        dpr={isMobile ? [1, 1.5] : [1, 2]} // Lower DPR for mobile performance
+      >
       <color attach="background" args={['#050510']} />
       <fogExp2 attach="fog" args={['#050510', isMobile ? 0.04 : 0.025]} />
       
@@ -105,5 +121,6 @@ export function Game() {
         </EffectComposer>
       )}
     </Canvas>
+    </ErrorBoundary>
   );
 }

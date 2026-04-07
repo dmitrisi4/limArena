@@ -42,17 +42,17 @@ export function LetterCube({ data }: { data: LetterData }) {
         >
           {/* Main Cube */}
           <mesh ref={meshRef} castShadow>
-            <boxGeometry args={[1, 1, 1]} />
-            <meshStandardMaterial color="#fcd34d" metalness={0.9} roughness={0.1} emissive="#fcd34d" emissiveIntensity={0.2} />
+            <boxGeometry args={[1.5, 1.5, 1.5]} />
+            <meshStandardMaterial color="#fcd34d" metalness={0.9} roughness={0.1} emissive="#fcd34d" emissiveIntensity={0.3} />
             
             {/* Letter on each face - Bold and Large */}
             {[
-              [0, 0, 0.51],
-              [0, 0, -0.51],
-              [0.51, 0, 0],
-              [-0.51, 0, 0],
-              [0, 0.51, 0],
-              [0, -0.51, 0]
+              [0, 0, 0.76],
+              [0, 0, -0.76],
+              [0.76, 0, 0],
+              [-0.76, 0, 0],
+              [0, 0.76, 0],
+              [0, -0.76, 0]
             ].map((pos, i) => (
               <Text
                 key={i}
@@ -62,7 +62,7 @@ export function LetterCube({ data }: { data: LetterData }) {
                   i === 2 ? Math.PI / 2 : i === 3 ? -Math.PI / 2 : i === 1 ? Math.PI : 0,
                   0
                 ]}
-                fontSize={0.8}
+                fontSize={1.2}
                 color="black"
                 fontWeight="bold"
                 anchorX="center"
@@ -75,13 +75,13 @@ export function LetterCube({ data }: { data: LetterData }) {
           
           {/* Floating Letter Above */}
           <Text
-            position={[0, 1.5, 0]}
-            fontSize={1.2}
+            position={[0, 2.5, 0]}
+            fontSize={1.8}
             color="#fcd34d"
             fontWeight="bold"
             anchorX="center"
             anchorY="middle"
-            outlineWidth={0.05}
+            outlineWidth={0.08}
             outlineColor="black"
           >
             {data.letter}
@@ -89,17 +89,19 @@ export function LetterCube({ data }: { data: LetterData }) {
 
           {/* Spinning Ring */}
           <mesh ref={ringRef}>
-            <torusGeometry args={[1.2, 0.05, 16, 32]} />
+            <torusGeometry args={[1.8, 0.08, 16, 32]} />
             <meshBasicMaterial color="#fcd34d" toneMapped={false} />
           </mesh>
           
           {/* Glow effect */}
-          <mesh scale={1.5}>
+          <mesh scale={2}>
             <boxGeometry args={[1, 1, 1]} />
             <meshBasicMaterial color="#fcd34d" transparent opacity={0.1} />
           </mesh>
           
-          <CuboidCollider args={[0.8, 0.8, 0.8]} />
+          <pointLight color="#fcd34d" intensity={3} distance={8} />
+          
+          <CuboidCollider args={[1.2, 1.2, 1.2]} />
         </RigidBody>
       </Float>
     </group>

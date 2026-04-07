@@ -8,27 +8,9 @@ import { Grid, Stars } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
+import { useGameStore, SAFE_ZONE_RADIUS } from '../store';
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    const uaMatch = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-    return uaMatch || coarsePointer || window.innerWidth < 768;
-  });
-
-  useEffect(() => {
-    const check = () => {
-      const uaMatch = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-      setIsMobile(uaMatch || coarsePointer || window.innerWidth < 768);
-    };
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
-  return isMobile;
-}
+import { useIsMobile } from '../lib/useIsMobile';
 
 // Seeded PRNG for consistent multiplayer obstacle generation
 function mulberry32(a: number) {
@@ -43,11 +25,11 @@ const rng = mulberry32(12345);
 
 const OBSTACLES = Array.from({ length: 300 }).map(() => {
   const type = 'box';
-  const x = (rng() - 0.5) * 370; // Larger map
-  const z = (rng() - 0.5) * 370;
+    const x = (rng() - 0.5) * 900; // Larger map
+    const z = (rng() - 0.5) * 900;
   
-  // Keep center somewhat clear
-  if (Math.abs(x) < 30 && Math.abs(z) < 30) return null;
+  // Keep city area clear
+  if (Math.sqrt(x * x + z * z) < SAFE_ZONE_RADIUS + 10) return null;
 
   const height = rng() * 8 + 6;
   const isHorizontal = rng() > 0.5;
@@ -63,14 +45,14 @@ export function Arena() {
   const isMobile = useIsMobile();
   
   const obstacles = useMemo(() => {
-    const count = isMobile ? 100 : 300;
+    const count = isMobile ? 200 : 600;
     const rngLocal = mulberry32(12345);
     return Array.from({ length: count }).map(() => {
       const type = 'box';
-      const x = (rngLocal() - 0.5) * 370;
-      const z = (rngLocal() - 0.5) * 370;
+      const x = (rngLocal() - 0.5) * 900;
+      const z = (rngLocal() - 0.5) * 900;
       
-      if (Math.abs(x) < 30 && Math.abs(z) < 30) return null;
+      if (Math.sqrt(x * x + z * z) < SAFE_ZONE_RADIUS + 10) return null;
 
       const height = rngLocal() * 8 + 6;
       const isHorizontal = rngLocal() > 0.5;
@@ -87,16 +69,19 @@ export function Arena() {
       {/* Floor */}
       <RigidBody type="fixed" name="floor" friction={0}>
         <mesh receiveShadow={!isMobile} position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[400, 400]} />
+          <planeGeometry args={[1000, 1000]} />
           <meshStandardMaterial color="#050510" roughness={0.2} metalness={0.8} />
         </mesh>
       </RigidBody>
-      <Grid position={[0, -0.49, 0]} args={[400, 400]} cellColor="#ff00ff" sectionColor="#00ffff" fadeDistance={200} cellThickness={0.5} sectionThickness={1.5} />
+      <Grid position={[0, -0.49, 0]} args={[1000, 1000]} cellColor="#ff00ff" sectionColor="#00ffff" fadeDistance={500} cellThickness={0.5} sectionThickness={1.5} />
+
+      {/* Safe Zone / City */}
+      <CityFence radius={SAFE_ZONE_RADIUS} />
 
       {/* Ceiling */}
       <RigidBody type="fixed" name="ceiling">
         <mesh receiveShadow={!isMobile} position={[0, 20, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[400, 400]} />
+          <planeGeometry args={[1000, 1000]} />
           <meshStandardMaterial color="#000000" roughness={1} />
         </mesh>
       </RigidBody>
@@ -110,10 +95,10 @@ export function Arena() {
       )}
 
       {/* Walls */}
-      <Wall name="wall-n" position={[0, 5, -200]} rotation={[0, 0, 0]} isMobile={isMobile} />
-      <Wall name="wall-s" position={[0, 5, 200]} rotation={[0, Math.PI, 0]} isMobile={isMobile} />
-      <Wall name="wall-e" position={[200, 5, 0]} rotation={[0, -Math.PI / 2, 0]} isMobile={isMobile} />
-      <Wall name="wall-w" position={[-200, 5, 0]} rotation={[0, Math.PI / 2, 0]} isMobile={isMobile} />
+      <Wall name="wall-n" position={[0, 5, -500]} rotation={[0, 0, 0]} isMobile={isMobile} />
+      <Wall name="wall-s" position={[0, 5, 500]} rotation={[0, Math.PI, 0]} isMobile={isMobile} />
+      <Wall name="wall-e" position={[500, 5, 0]} rotation={[0, -Math.PI / 2, 0]} isMobile={isMobile} />
+      <Wall name="wall-w" position={[-500, 5, 0]} rotation={[0, Math.PI / 2, 0]} isMobile={isMobile} />
 
       {/* Obstacles */}
       {obstacles.map((obs, i) => {
@@ -157,20 +142,63 @@ function Wall({ name, position, rotation, isMobile }: { name: string, position: 
     <RigidBody type="fixed" name={name} position={position} rotation={rotation}>
       {/* Solid Wall */}
       <mesh>
-        <boxGeometry args={[200, 10, 1]} />
+        <boxGeometry args={[1000, 10, 1]} />
         <meshStandardMaterial color="#0a0a1a" roughness={0.8} metalness={0.2} />
       </mesh>
       {/* Glowing Base Line */}
       <mesh position={[0, -4.5, 0.51]}>
-        <planeGeometry args={[200, 1]} />
+        <planeGeometry args={[1000, 1]} />
         <meshBasicMaterial color="#ff00ff" toneMapped={false} />
       </mesh>
       {/* Glowing Top Line */}
       <mesh position={[0, 4.5, 0.51]}>
-        <planeGeometry args={[200, 1]} />
+        <planeGeometry args={[1000, 1]} />
         <meshBasicMaterial color="#00ffff" toneMapped={false} />
       </mesh>
     </RigidBody>
+  );
+}
+
+function CityFence({ radius }: { radius: number }) {
+  const segments = 16;
+  const height = 4;
+  const thickness = 1;
+  const angleStep = (Math.PI * 2) / segments;
+
+  return (
+    <group>
+      {Array.from({ length: segments }).map((_, i) => {
+        const angle = i * angleStep;
+        // Leave a gap for entrance
+        if (i === 0 || i === 1) return null;
+        
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        const nextAngle = (i + 1) * angleStep;
+        const nx = Math.cos(nextAngle) * radius;
+        const nz = Math.sin(nextAngle) * radius;
+        
+        const dx = nx - x;
+        const dz = nz - z;
+        const length = Math.sqrt(dx * dx + dz * dz);
+        const wallAngle = Math.atan2(dz, dx);
+
+        return (
+          <RigidBody key={i} type="fixed">
+            <mesh position={[x + dx / 2, height / 2, z + dz / 2]} rotation={[0, -wallAngle, 0]}>
+              <boxGeometry args={[length, height, thickness]} />
+              <meshStandardMaterial color="#58cc02" emissive="#58cc02" emissiveIntensity={0.2} transparent opacity={0.6} />
+            </mesh>
+          </RigidBody>
+        );
+      })}
+      
+      {/* City Floor */}
+      <mesh position={[0, -0.48, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[radius, 32]} />
+        <meshStandardMaterial color="#1a1a2e" roughness={0.8} />
+      </mesh>
+    </group>
   );
 }
 
@@ -183,9 +211,9 @@ function AmbientParticles() {
     const positions = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
     for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 200;
+      positions[i * 3] = (Math.random() - 0.5) * 1000;
       positions[i * 3 + 1] = Math.random() * 40;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 200;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 1000;
       sizes[i] = Math.random() * 0.8 + 0.4; // Smaller particles
     }
     return [positions, sizes];

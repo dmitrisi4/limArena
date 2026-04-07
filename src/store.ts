@@ -65,7 +65,8 @@ export interface Quest {
   isCompleted: boolean;
 }
 
-const LESSON_WORDS = ["APPLE", "HELLO", "GREEN", "STUDY", "LEARN"];
+const LESSON_WORDS = ["APPLE", "HELLO", "GREEN", "STUDY", "LEARN", "WORLD", "BREAD", "WATER", "HOUSE", "FRIEND"];
+export const SAFE_ZONE_RADIUS = 60;
 
 interface GameStore {
   gameState: GameState;
@@ -77,6 +78,7 @@ interface GameStore {
   lasers: LaserData[];
   particles: ParticleData[];
   events: GameEvent[];
+  playerPos: [number, number, number];
   
   // Quest & Inventory System
   currentQuest: Quest | null;
@@ -88,6 +90,7 @@ interface GameStore {
   dropLetter: (position: [number, number, number], letter: string) => void;
   startNextLesson: () => void;
   craftWord: () => void;
+  exchangeLetters: (lettersToGive: string[], letterToReceive: string) => void;
   
   // Multiplayer
   socket: Socket | null;
@@ -97,7 +100,7 @@ interface GameStore {
   endGame: () => void;
   leaveGame: () => void;
   updateTime: (delta: number) => void;
-  hitPlayer: () => void;
+  hitPlayer: (position: [number, number, number]) => void;
   hitEnemy: (id: string, byPlayer?: boolean) => void;
   addLaser: (start: [number, number, number], end: [number, number, number], color: string) => void;
   addParticles: (position: [number, number, number], color: string) => void;
@@ -122,16 +125,16 @@ interface GameStore {
   }>) => void;
 }
 
-const INITIAL_ENEMIES: EnemyData[] = [
-  { id: 'bot-1', position: [40, 1, 40], state: 'active', disabledUntil: 0 },
-  { id: 'bot-2', position: [-40, 1, 40], state: 'active', disabledUntil: 0 },
-  { id: 'bot-3', position: [40, 1, -40], state: 'active', disabledUntil: 0 },
-  { id: 'bot-4', position: [-40, 1, -40], state: 'active', disabledUntil: 0 },
-  { id: 'bot-5', position: [0, 1, -50], state: 'active', disabledUntil: 0 },
-  { id: 'bot-6', position: [60, 1, 0], state: 'active', disabledUntil: 0 },
-  { id: 'bot-7', position: [-60, 1, 0], state: 'active', disabledUntil: 0 },
-  { id: 'bot-8', position: [0, 1, 50], state: 'active', disabledUntil: 0 },
-];
+const INITIAL_ENEMIES: EnemyData[] = Array.from({ length: 60 }).map((_, i) => ({
+  id: `bot-${i}`,
+  position: [
+    (Math.random() - 0.5) * 900, 
+    1, 
+    (Math.random() - 0.5) * 900
+  ],
+  state: 'active',
+  disabledUntil: 0
+}));
 
 export const useGameStore = create<GameStore>((set, get) => ({
   gameState: 'menu',
@@ -143,6 +146,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   lasers: [],
   particles: [],
   events: [],
+  playerPos: [0, 0, 0],
   
   socket: null,
   otherPlayers: {},
@@ -173,7 +177,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let newSocket: Socket | null = null;
 
     // Initialize multiplayer
-    newSocket = io(window.location.origin);
+    newSocket = io(window.location.origin, {
+      transports: ['websocket']
+    });
     
     newSocket.on('connect', () => {
       newSocket!.emit('joinGame');
@@ -189,9 +195,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       delete otherPlayers[newSocket!.id!];
       
       const targetWord = LESSON_WORDS[0];
-      const initialLetters: LetterData[] = Array.from({ length: 10 }).map((_, i) => ({
+      const initialLetters: LetterData[] = Array.from({ length: 30 }).map((_, i) => ({
         id: `letter-init-${i}`,
-        position: [(Math.random() - 0.5) * 300, 1, (Math.random() - 0.5) * 300],
+        position: [(Math.random() - 0.5) * 800, 1, (Math.random() - 0.5) * 800],
         letter: String.fromCharCode(65 + Math.floor(Math.random() * 26)),
         collected: false
       }));
@@ -262,6 +268,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
           };
 
           if (isLocalTarget) {
+            // Safe zone protection
+            const distFromCenter = Math.sqrt(state.playerPos[0] * state.playerPos[0] + state.playerPos[2] * state.playerPos[2]);
+            if (distFromCenter < SAFE_ZONE_RADIUS) return state;
+
             newState.playerState = 'disabled';
             newState.playerDisabledUntil = data.targetDisabledUntil;
           }
@@ -311,9 +321,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         });
       });
     const targetWord = LESSON_WORDS[0];
-    const initialLetters: LetterData[] = Array.from({ length: 10 }).map((_, i) => ({
+    const initialLetters: LetterData[] = Array.from({ length: 30 }).map((_, i) => ({
       id: `letter-init-${i}`,
-      position: [(Math.random() - 0.5) * 300, 1, (Math.random() - 0.5) * 300],
+      position: [(Math.random() - 0.5) * 800, 1, (Math.random() - 0.5) * 800],
       letter: String.fromCharCode(65 + Math.floor(Math.random() * 26)),
       collected: false
     }));
@@ -381,8 +391,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return { timeLeft: newTime };
   }),
 
-  hitPlayer: () => set((state) => {
+  hitPlayer: (position) => set((state) => {
     if (state.playerState === 'disabled' || state.gameState !== 'playing') return state;
+    
+    // Safe zone protection
+    const distFromCenter = Math.sqrt(position[0] * position[0] + position[2] * position[2]);
+    if (distFromCenter < SAFE_ZONE_RADIUS) return state;
+
     return {
       playerState: 'disabled',
       playerDisabledUntil: Date.now() + 3000,
@@ -442,6 +457,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
         changed = true;
         return { ...e, state: 'active' as EntityState };
       }
+      
+      // Safe zone check: enemies stay outside
+      const distFromCenter = Math.sqrt(e.position[0] * e.position[0] + e.position[2] * e.position[2]);
+      if (distFromCenter < SAFE_ZONE_RADIUS + 5) {
+        const pushDir = [e.position[0] / distFromCenter, 0, e.position[2] / distFromCenter];
+        changed = true;
+        return {
+          ...e,
+          position: [
+            pushDir[0] * (SAFE_ZONE_RADIUS + 10),
+            e.position[1],
+            pushDir[2] * (SAFE_ZONE_RADIUS + 10)
+          ] as [number, number, number]
+        };
+      }
+
       return e;
     });
     
@@ -518,7 +549,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       "HELLO": "Привет",
       "GREEN": "Зеленый",
       "STUDY": "Учиться",
-      "LEARN": "Изучать"
+      "LEARN": "Изучать",
+      "WORLD": "Мир",
+      "BREAD": "Хлеб",
+      "WATER": "Вода",
+      "HOUSE": "Дом",
+      "FRIEND": "Друг"
     };
 
     return {
@@ -569,10 +605,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   }),
 
+  exchangeLetters: (lettersToGive, letterToReceive) => set((state) => {
+    const inv = [...state.inventory];
+    let allFound = true;
+    
+    for (const char of lettersToGive) {
+      const index = inv.indexOf(char);
+      if (index !== -1) {
+        inv.splice(index, 1);
+      } else {
+        allFound = false;
+        break;
+      }
+    }
+
+    if (allFound) {
+      return {
+        inventory: [...inv, letterToReceive],
+        events: [...state.events, { id: Math.random().toString(), message: `EXCHANGED 3 LETTERS FOR ${letterToReceive}`, timestamp: Date.now() }]
+      };
+    }
+    return state;
+  }),
+
   updatePlayerPosition: (position, rotation) => {
     const { socket } = get();
     if (socket) {
       socket.emit('updatePosition', { position, rotation });
     }
+    set({ playerPos: position });
   }
 }));

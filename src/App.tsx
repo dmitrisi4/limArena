@@ -6,6 +6,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Game } from './components/Game';
 import { MobileControls } from './components/MobileControls';
+import { useIsMobile } from './lib/useIsMobile';
 import { useGameStore } from './store';
 
 function HUD() {
@@ -165,25 +166,7 @@ function HUD() {
   );
 }
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => {
-    const uaMatch = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-    return uaMatch || coarsePointer || window.innerWidth < 768;
-  });
 
-  useEffect(() => {
-    const check = () => {
-      const uaMatch = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-      setIsMobile(uaMatch || coarsePointer || window.innerWidth < 768);
-    };
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
-  return isMobile;
-}
 
 export default function App() {
   const gameState = useGameStore(state => state.gameState);
@@ -203,22 +186,38 @@ export default function App() {
 
       {/* Menus */}
       {gameState === 'menu' && (
-        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10 pointer-events-auto">
-          <h1 className="text-6xl font-black text-cyan-400 mb-8 drop-shadow-[0_0_20px_rgba(34,211,238,0.8)] tracking-tighter">
-            NEON ARENA
-          </h1>
-          <p className="text-gray-400 mb-8 text-center max-w-md">
-            WASD to move. Mouse to look and shoot.<br/>
-            Hit enemies for points. Don't get hit!
-          </p>
-
-          <div className="flex flex-col gap-6 w-80">
-            <button
-              onClick={() => startGame()}
-              className="w-full px-8 py-4 bg-fuchsia-500/20 border-2 border-fuchsia-400 text-fuchsia-400 text-xl font-bold rounded hover:bg-fuchsia-400 hover:text-black transition-all duration-200 shadow-[0_0_15px_rgba(232,121,249,0.5)]"
-            >
-              PLAY NOW
-            </button>
+        <div className="absolute inset-0 bg-white flex flex-col items-center justify-center z-10 pointer-events-auto">
+          <div className="w-full max-w-4xl px-8 flex flex-col md:flex-row items-center gap-12">
+            <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left">
+              <h1 className="text-5xl md:text-7xl font-black text-[#58cc02] mb-6 tracking-tight">
+                DuoTag
+              </h1>
+              <p className="text-[#4b4b4b] text-xl md:text-2xl font-bold mb-12 leading-relaxed">
+                The free, fun, and effective way to learn words while dodging lasers!
+              </p>
+              <div className="flex flex-col gap-4 w-full max-w-sm">
+                <button
+                  onClick={() => startGame()}
+                  className="w-full py-4 bg-[#58cc02] border-b-4 border-[#46a302] text-white text-xl font-black rounded-2xl hover:brightness-110 transition-all active:translate-y-1 active:border-b-0"
+                >
+                  GET STARTED
+                </button>
+                <button
+                  className="w-full py-4 bg-white border-2 border-b-4 border-[#e5e5e5] text-[#1cb0f6] text-xl font-black rounded-2xl hover:bg-[#f7f7f7] transition-all"
+                >
+                  I ALREADY HAVE AN ACCOUNT
+                </button>
+              </div>
+            </div>
+            <div className="hidden md:flex flex-1 justify-center">
+              <div className="w-64 h-64 bg-[#58cc02] rounded-full flex items-center justify-center shadow-2xl animate-bounce">
+                <div className="text-white text-9xl font-black">🦉</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="absolute bottom-8 text-[#afafaf] text-sm font-bold uppercase tracking-widest">
+            WASD TO MOVE • MOUSE TO SHOOT • COLLECT LETTERS • CRAFT WORDS
           </div>
         </div>
       )}
