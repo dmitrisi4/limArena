@@ -231,18 +231,38 @@ export function Player() {
       {/* First Person Gun */}
       <group ref={gunGroupRef}>
         <group ref={gunVisualRef} position={[0.4, -0.3, -0.6]}>
+          {/* Handle */}
+          <mesh position={[0, -0.1, 0.3]} rotation={[0.4, 0, 0]}>
+            <boxGeometry args={[0.08, 0.2, 0.1]} />
+            <meshStandardMaterial color="#111" roughness={0.5} />
+          </mesh>
+          
           {/* Main body */}
-          <mesh position={[0, 0, 0.2]}>
-            <boxGeometry args={[0.1, 0.15, 0.4]} />
+          <mesh position={[0, 0, 0.1]}>
+            <boxGeometry args={[0.12, 0.18, 0.5]} />
             <meshStandardMaterial color="#222" metalness={0.8} roughness={0.2} />
           </mesh>
+
+          {/* Glowing Accents */}
+          <mesh position={[0, 0.05, 0.1]}>
+            <boxGeometry args={[0.13, 0.02, 0.4]} />
+            <meshBasicMaterial color="#00ffff" />
+          </mesh>
+
           {/* Barrel */}
-          <mesh position={[0, 0.05, -0.15]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.03, 0.03, 0.3, 8]} />
+          <mesh position={[0, 0.05, -0.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.04, 0.04, 0.4, 12]} />
             <meshStandardMaterial color="#111" metalness={0.9} roughness={0.1} />
           </mesh>
+
+          {/* Muzzle */}
+          <mesh position={[0, 0.05, -0.4]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.05, 0.05, 0.05, 12]} />
+            <meshStandardMaterial color="#333" metalness={1} />
+          </mesh>
+          
           {/* Barrel Tip Reference */}
-          <group ref={gunBarrelRef} position={[0, 0.05, -0.3]} />
+          <group ref={gunBarrelRef} position={[0, 0.05, -0.45]} />
         </group>
       </group>
     </>

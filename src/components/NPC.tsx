@@ -10,28 +10,66 @@ function RobotModel({ color, emissive }: { color: string, emissive: string }) {
   
   useFrame((state) => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += 0.01;
+      meshRef.current.rotation.y += 0.005;
+      meshRef.current.position.y = Math.sin(state.clock.elapsedTime) * 0.1;
     }
   });
 
   return (
     <group ref={meshRef}>
-      <mesh position={[0, 1.5, 0]}>
-        <boxGeometry args={[1.5, 2, 1]} />
-        <meshStandardMaterial color={color} emissive={emissive} emissiveIntensity={0.5} />
+      {/* Base/Hover Pad */}
+      <mesh position={[0, 0.2, 0]}>
+        <cylinderGeometry args={[0.8, 1, 0.2, 16]} />
+        <meshStandardMaterial color="#333" />
       </mesh>
-      <mesh position={[0, 3, 0]}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color={color} />
+      
+      {/* Main Body */}
+      <mesh position={[0, 1.2, 0]}>
+        <sphereGeometry args={[0.8, 16, 16]} />
+        <meshStandardMaterial color={color} roughness={0.2} metalness={0.8} />
       </mesh>
-      <mesh position={[0.2, 3.1, 0.51]}>
-        <planeGeometry args={[0.2, 0.2]} />
-        <meshBasicMaterial color="white" />
+
+      {/* Screen/Face */}
+      <mesh position={[0, 1.3, 0.6]} rotation={[-0.1, 0, 0]}>
+        <boxGeometry args={[0.8, 0.6, 0.1]} />
+        <meshStandardMaterial color="#111" />
       </mesh>
-      <mesh position={[-0.2, 3.1, 0.51]}>
-        <planeGeometry args={[0.2, 0.2]} />
-        <meshBasicMaterial color="white" />
+      
+      {/* Eyes on screen */}
+      <mesh position={[0.2, 1.35, 0.66]}>
+        <planeGeometry args={[0.15, 0.15]} />
+        <meshBasicMaterial color={emissive} />
       </mesh>
+      <mesh position={[-0.2, 1.35, 0.66]}>
+        <planeGeometry args={[0.15, 0.15]} />
+        <meshBasicMaterial color={emissive} />
+      </mesh>
+
+      {/* Antenna */}
+      <mesh position={[0, 2, 0]}>
+        <cylinderGeometry args={[0.02, 0.02, 0.4]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh position={[0, 2.2, 0]}>
+        <sphereGeometry args={[0.05]} />
+        <meshBasicMaterial color={emissive} />
+      </mesh>
+
+      {/* Floating Arms */}
+      <group position={[1, 1.2, 0]}>
+        <mesh>
+          <sphereGeometry args={[0.15]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+      </group>
+      <group position={[-1, 1.2, 0]}>
+        <mesh>
+          <sphereGeometry args={[0.15]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+      </group>
+
+      <pointLight position={[0, 1.3, 0.7]} distance={2} intensity={1} color={emissive} />
     </group>
   );
 }

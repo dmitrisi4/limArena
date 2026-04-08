@@ -16,6 +16,70 @@ const CHASE_DIST = 15; // Reduced from 20
 const SHOOT_DIST = 15;
 const SHOOT_COOLDOWN = 3500; // Increased from 2000 for less aggressive shooting
 
+function RobotModel({ color, isAggro, isDisabled }: { color: string, isAggro: boolean, isDisabled: boolean }) {
+  const group = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (group.current) {
+      // Hover effect
+      group.current.position.y = Math.sin(state.clock.elapsedTime * 2) * 0.1;
+    }
+  });
+
+  const emissiveColor = isDisabled ? '#111' : (isAggro ? '#ff0000' : '#00ffff');
+
+  return (
+    <group ref={group}>
+      {/* Head */}
+      <mesh position={[0, 1.5, 0]}>
+        <sphereGeometry args={[0.4, 16, 16]} />
+        <meshStandardMaterial color={color} roughness={0.3} metalness={0.8} />
+      </mesh>
+      
+      {/* Visor/Eyes */}
+      <mesh position={[0, 1.55, 0.3]} rotation={[0.2, 0, 0]}>
+        <boxGeometry args={[0.5, 0.15, 0.1]} />
+        <meshBasicMaterial color={emissiveColor} />
+      </mesh>
+
+      {/* Body/Torso */}
+      <mesh position={[0, 0.9, 0]}>
+        <cylinderGeometry args={[0.3, 0.5, 0.8, 6]} />
+        <meshStandardMaterial color={color} roughness={0.3} metalness={0.8} />
+      </mesh>
+
+      {/* Shoulders/Arms */}
+      <group position={[0, 1.1, 0]}>
+        <mesh position={[0.6, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.1, 0.1, 0.4]} />
+          <meshStandardMaterial color="#222" />
+        </mesh>
+        <mesh position={[-0.6, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.1, 0.1, 0.4]} />
+          <meshStandardMaterial color="#222" />
+        </mesh>
+        
+        {/* Hands/Cannons */}
+        <mesh position={[0.8, -0.2, 0.2]}>
+          <boxGeometry args={[0.2, 0.2, 0.4]} />
+          <meshStandardMaterial color="#111" metalness={1} />
+        </mesh>
+        <mesh position={[-0.8, -0.2, 0.2]}>
+          <boxGeometry args={[0.2, 0.2, 0.4]} />
+          <meshStandardMaterial color="#111" metalness={1} />
+        </mesh>
+      </group>
+
+      {/* Thruster/Base */}
+      <mesh position={[0, 0.4, 0]}>
+        <cylinderGeometry args={[0.2, 0.05, 0.3, 8]} />
+        <meshStandardMaterial color="#333" />
+      </mesh>
+      <pointLight position={[0, 0.2, 0]} distance={2} intensity={isAggro ? 2 : 0.5} color={emissiveColor} />
+    </group>
+  );
+}
+
 export function Enemy({ data }: { data: EnemyData }) {
   const body = useRef<RapierRigidBody>(null);
   const { camera } = useThree();
@@ -216,27 +280,11 @@ export function Enemy({ data }: { data: EnemyData }) {
     >
       <CapsuleCollider args={[0.5, 0.5]} position={[0, 1, 0]} />
       <group ref={groupRef} position={[0, 0, 0]}>
-        {/* Body */}
-        <mesh castShadow position={[0, 1, 0]}>
-          <capsuleGeometry args={[0.5, 1]} />
-          <meshStandardMaterial 
-            color={color} 
-            roughness={0.3} 
-            metalness={0.8} 
-            emissive={color}
-            emissiveIntensity={data.state === 'disabled' ? 0 : 0.4}
-          />
-        </mesh>
-        
-        {/* Eye/Visor */}
-        <mesh position={[0, 1.6, 0.45]}>
-          <boxGeometry args={[0.6, 0.2, 0.2]} />
-          <meshBasicMaterial color={data.state === 'disabled' ? '#111' : (data.isAggro ? '#ff0000' : '#00ffff')} />
-        </mesh>
+        <RobotModel color={color} isAggro={data.isAggro} isDisabled={data.state === 'disabled'} />
 
         {/* Username Label */}
         <Text
-          position={[0, 2.5, 0]}
+          position={[0, 2.8, 0]}
           fontSize={0.3}
           color={data.state === 'active' ? (data.isAggro ? '#ff0055' : '#58cc02') : '#666666'}
           anchorX="center"
