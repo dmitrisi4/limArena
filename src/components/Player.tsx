@@ -106,11 +106,11 @@ export function Player() {
         if (name) {
           // Check if it's a bot
           if (name.startsWith('bot-')) {
-            gState.hitEnemy(name, true);
+            gState.hitEnemy(name, endPos, true);
           } 
           // Check if it's another player (socket ID)
           else if (name !== 'player' && gState.otherPlayers[name]) {
-            gState.hitEnemy(name, true);
+            gState.hitEnemy(name, endPos, true);
           }
         }
       }

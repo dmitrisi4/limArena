@@ -15,10 +15,17 @@ export function LetterCube({ data }: { data: LetterData }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const collectLetter = useGameStore(useShallow(state => state.collectLetter));
 
-  useFrame((state) => {
+  useFrame((state_fiber) => {
     if (meshRef.current) {
       meshRef.current.rotation.y += 0.02;
       meshRef.current.rotation.x += 0.01;
+    }
+
+    // Distance-based pickup fallback
+    const playerPos = state_fiber.camera.position;
+    const dist = playerPos.distanceTo(new THREE.Vector3(...data.position));
+    if (dist < 3) {
+      collectLetter(data.id);
     }
   });
 
@@ -78,7 +85,7 @@ export function LetterCube({ data }: { data: LetterData }) {
             {data.letter}
           </Text>
 
-          <CuboidCollider args={[1, 1, 1]} />
+          <CuboidCollider args={[1.5, 1.5, 1.5]} />
         </RigidBody>
       </Float>
     </group>

@@ -15,6 +15,7 @@ export interface EnemyData {
   position: [number, number, number];
   state: EntityState;
   disabledUntil: number;
+  isAggro: boolean;
 }
 
 export interface PlayerData {
@@ -101,7 +102,7 @@ interface GameStore {
   leaveGame: () => void;
   updateTime: (delta: number) => void;
   hitPlayer: (position: [number, number, number]) => void;
-  hitEnemy: (id: string, byPlayer?: boolean) => void;
+  hitEnemy: (id: string, position?: [number, number, number], byPlayer?: boolean) => void;
   addLaser: (start: [number, number, number], end: [number, number, number], color: string) => void;
   addParticles: (position: [number, number, number], color: string) => void;
   addEvent: (message: string) => void;
@@ -128,12 +129,13 @@ interface GameStore {
 const INITIAL_ENEMIES: EnemyData[] = Array.from({ length: 4 }).map((_, i) => ({
   id: `bot-${i}`,
   position: [
-    (Math.random() - 0.5) * 150, 
+    (Math.random() - 0.5) * 80, 
     1, 
-    (Math.random() - 0.5) * 150
+    (Math.random() - 0.5) * 80
   ],
   state: 'active',
-  disabledUntil: 0
+  disabledUntil: 0,
+  isAggro: false
 }));
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -197,7 +199,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const targetWord = LESSON_WORDS[0];
       const initialLetters: LetterData[] = Array.from({ length: 6 }).map((_, i) => ({
         id: `letter-init-${i}`,
-        position: [(Math.random() - 0.5) * 150, 1, (Math.random() - 0.5) * 150],
+        position: [(Math.random() - 0.5) * 80, 1, (Math.random() - 0.5) * 80],
         letter: String.fromCharCode(65 + Math.floor(Math.random() * 26)),
         collected: false
       }));
@@ -207,7 +209,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         gameState: 'playing',
         timeLeft: 600, // 10 minutes
         score: 0,
-        enemies: INITIAL_ENEMIES.map(e => ({ ...e, state: 'active', disabledUntil: 0 })),
+        enemies: INITIAL_ENEMIES.map(e => ({ ...e, state: 'active', disabledUntil: 0, isAggro: false })),
         lessonIndex: 0,
         inventory: [],
         currentQuest: {
@@ -323,7 +325,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const targetWord = LESSON_WORDS[0];
     const initialLetters: LetterData[] = Array.from({ length: 6 }).map((_, i) => ({
       id: `letter-init-${i}`,
-      position: [(Math.random() - 0.5) * 150, 1, (Math.random() - 0.5) * 150],
+      position: [(Math.random() - 0.5) * 80, 1, (Math.random() - 0.5) * 80],
       letter: String.fromCharCode(65 + Math.floor(Math.random() * 26)),
       collected: false
     }));
@@ -334,7 +336,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       timeLeft: 600,
       playerState: 'active',
       playerDisabledUntil: 0,
-      enemies: INITIAL_ENEMIES.map(e => ({ ...e, state: 'active', disabledUntil: 0 })),
+      enemies: INITIAL_ENEMIES.map(e => ({ ...e, state: 'active', disabledUntil: 0, isAggro: false })),
       lasers: [],
       particles: [],
       events: [],
@@ -405,7 +407,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
   }),
 
-  hitEnemy: (id, byPlayer = false) => set((state) => {
+  hitEnemy: (id, position, byPlayer = false) => set((state) => {
     if (state.gameState !== 'playing') return state;
     
     // Check if it's a multiplayer player
@@ -416,12 +418,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const enemies = state.enemies.map(e => {
       if (e.id === id && e.state === 'active') {
-        // Drop a random letter
-        if (Math.random() > 0.3) {
+        if (!e.isAggro && byPlayer) {
+          // First hit makes them aggressive
+          return { ...e, isAggro: true };
+        } else {
+          // Second hit or non-player hit disables them
           const randomLetter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
-          setTimeout(() => get().dropLetter(e.position, randomLetter), 0);
+          const dropPos = position || e.position;
+          setTimeout(() => get().dropLetter(dropPos, randomLetter), 0);
+          return { ...e, state: 'disabled' as EntityState, disabledUntil: Date.now() + 3000, isAggro: false };
         }
-        return { ...e, state: 'disabled' as EntityState, disabledUntil: Date.now() + 3000 };
       }
       return e;
     });
@@ -455,7 +461,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const enemies = state.enemies.map(e => {
       if (e.state === 'disabled' && time > e.disabledUntil) {
         changed = true;
-        return { ...e, state: 'active' as EntityState };
+        return { ...e, state: 'active' as EntityState, isAggro: false };
       }
       
       // Safe zone check: enemies stay outside
@@ -526,7 +532,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   dropLetter: (position, letter) => set((state) => ({
     letters: [...state.letters, {
       id: `letter-drop-${Math.random().toString(36).substr(2, 9)}`,
-      position: [position[0], 1, position[2]],
+      position: [
+        position[0] + (Math.random() - 0.5) * 2,
+        1,
+        position[2] + (Math.random() - 0.5) * 2
+      ],
       letter,
       collected: false
     }],

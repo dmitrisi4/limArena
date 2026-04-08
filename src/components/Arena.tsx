@@ -33,14 +33,14 @@ export function Arena() {
   const isMobile = useIsMobile();
   
   const obstacles = useMemo(() => {
-    const count = isMobile ? 5 : 15; // Minimum for stability
+    const count = isMobile ? 5 : 12; // Minimum for stability
     const rngLocal = mulberry32(12345);
     return Array.from({ length: count }).map(() => {
       const type = 'box';
-      const x = (rngLocal() - 0.5) * 300;
-      const z = (rngLocal() - 0.5) * 300;
+      const x = (rngLocal() - 0.5) * 150;
+      const z = (rngLocal() - 0.5) * 150;
       
-      if (Math.sqrt(x * x + z * z) < SAFE_ZONE_RADIUS + 10) return null;
+      if (Math.sqrt(x * x + z * z) < SAFE_ZONE_RADIUS + 3) return null;
 
       const height = rngLocal() * 5 + 3;
       const isHorizontal = rngLocal() > 0.5;
@@ -57,11 +57,11 @@ export function Arena() {
       {/* Floor */}
       <RigidBody type="fixed" name="floor" friction={0}>
         <mesh position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[600, 600]} />
+          <planeGeometry args={[200, 200]} />
           <meshStandardMaterial color="#050510" roughness={0.2} metalness={0.8} />
         </mesh>
       </RigidBody>
-      {!isMobile && <Grid position={[0, -0.49, 0]} args={[600, 600]} cellColor="#ff00ff" sectionColor="#00ffff" fadeDistance={300} cellThickness={0.5} sectionThickness={1.5} />}
+      {!isMobile && <Grid position={[0, -0.49, 0]} args={[200, 200]} cellColor="#ff00ff" sectionColor="#00ffff" fadeDistance={100} cellThickness={0.5} sectionThickness={1.5} />}
 
       {/* Safe Zone / City */}
       <CityFence radius={SAFE_ZONE_RADIUS} />
@@ -69,7 +69,7 @@ export function Arena() {
       {/* Ceiling */}
       <RigidBody type="fixed" name="ceiling">
         <mesh position={[0, 20, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[600, 600]} />
+          <planeGeometry args={[200, 200]} />
           <meshStandardMaterial color="#000000" roughness={1} />
         </mesh>
       </RigidBody>
@@ -78,10 +78,10 @@ export function Arena() {
       {/* Atmosphere disabled for stability */}
 
       {/* Walls */}
-      <Wall name="wall-n" position={[0, 5, -300]} rotation={[0, 0, 0]} isMobile={isMobile} />
-      <Wall name="wall-s" position={[0, 5, 300]} rotation={[0, Math.PI, 0]} isMobile={isMobile} />
-      <Wall name="wall-e" position={[300, 5, 0]} rotation={[0, -Math.PI / 2, 0]} isMobile={isMobile} />
-      <Wall name="wall-w" position={[-300, 5, 0]} rotation={[0, Math.PI / 2, 0]} isMobile={isMobile} />
+      <Wall name="wall-n" position={[0, 5, -100]} rotation={[0, 0, 0]} isMobile={isMobile} />
+      <Wall name="wall-s" position={[0, 5, 100]} rotation={[0, Math.PI, 0]} isMobile={isMobile} />
+      <Wall name="wall-e" position={[100, 5, 0]} rotation={[0, -Math.PI / 2, 0]} isMobile={isMobile} />
+      <Wall name="wall-w" position={[-100, 5, 0]} rotation={[0, Math.PI / 2, 0]} isMobile={isMobile} />
 
       {/* Obstacles */}
       {obstacles.map((obs, i) => {
@@ -117,17 +117,17 @@ function Wall({ name, position, rotation, isMobile }: { name: string, position: 
     <RigidBody type="fixed" name={name} position={position} rotation={rotation}>
       {/* Solid Wall */}
       <mesh>
-        <boxGeometry args={[600, 10, 1]} />
+        <boxGeometry args={[200, 10, 1]} />
         <meshStandardMaterial color="#0a0a1a" roughness={0.8} metalness={0.2} />
       </mesh>
       {/* Glowing Base Line */}
       <mesh position={[0, -4.5, 0.51]}>
-        <planeGeometry args={[600, 1]} />
+        <planeGeometry args={[200, 1]} />
         <meshBasicMaterial color="#ff00ff" toneMapped={false} />
       </mesh>
       {/* Glowing Top Line */}
       <mesh position={[0, 4.5, 0.51]}>
-        <planeGeometry args={[600, 1]} />
+        <planeGeometry args={[200, 1]} />
         <meshBasicMaterial color="#00ffff" toneMapped={false} />
       </mesh>
     </RigidBody>

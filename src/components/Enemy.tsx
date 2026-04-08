@@ -53,7 +53,7 @@ export function Enemy({ data }: { data: EnemyData }) {
     let closestDist = CHASE_DIST;
 
     // Check player
-    if (gState.playerState === 'active') {
+    if (gState.playerState === 'active' && data.isAggro) {
       const playerPos = camera.position.clone();
       playerPos.y = pos.y; // Ignore height difference for distance
       const distToPlayer = currentPos.distanceTo(playerPos);
@@ -66,7 +66,7 @@ export function Enemy({ data }: { data: EnemyData }) {
     // Check other enemies
     const allEnemies = gState.enemies;
     allEnemies.forEach(e => {
-      if (e.id !== data.id && e.state === 'active') {
+      if (e.id !== data.id && e.state === 'active' && data.isAggro) {
         const ePos = new THREE.Vector3(e.position[0], pos.y, e.position[2]);
         const distToEnemy = currentPos.distanceTo(ePos);
         if (distToEnemy < closestDist) {
@@ -131,22 +131,24 @@ export function Enemy({ data }: { data: EnemyData }) {
               lastShootTime.current = now;
             } else if (userData.name?.startsWith('bot-')) {
               // Hit another enemy!
-              gState.hitEnemy(userData.name);
               const hitPoint = ray.pointAt(hit.timeOfImpact);
-              gState.addParticles([hitPoint.x, hitPoint.y, hitPoint.z], '#ff0000');
+              const hitPos: [number, number, number] = [hitPoint.x, hitPoint.y, hitPoint.z];
+              gState.hitEnemy(userData.name, hitPos);
+              gState.addParticles(hitPos, '#ff0000');
               gState.addLaser(
                 [startPos.x, startPos.y, startPos.z],
-                [hitPoint.x, hitPoint.y, hitPoint.z],
+                hitPos,
                 '#ff0000'
               );
               lastShootTime.current = now;
             } else {
               // Hit wall or obstacle
               const hitPoint = ray.pointAt(hit.timeOfImpact);
-              gState.addParticles([hitPoint.x, hitPoint.y, hitPoint.z], '#ff0000');
+              const hitPos: [number, number, number] = [hitPoint.x, hitPoint.y, hitPoint.z];
+              gState.addParticles(hitPos, '#ff0000');
               gState.addLaser(
                 [startPos.x, startPos.y, startPos.z],
-                [hitPoint.x, hitPoint.y, hitPoint.z],
+                hitPos,
                 '#ff0000'
               );
               lastShootTime.current = now;
@@ -200,7 +202,7 @@ export function Enemy({ data }: { data: EnemyData }) {
     }
   });
 
-  const color = data.state === 'disabled' ? '#444' : '#ff0055';
+  const color = data.state === 'disabled' ? '#444' : (data.isAggro ? '#ff0055' : '#58cc02');
 
   return (
     <RigidBody
@@ -229,20 +231,20 @@ export function Enemy({ data }: { data: EnemyData }) {
         {/* Eye/Visor */}
         <mesh position={[0, 1.6, 0.45]}>
           <boxGeometry args={[0.6, 0.2, 0.2]} />
-          <meshBasicMaterial color={data.state === 'disabled' ? '#111' : '#00ffff'} />
+          <meshBasicMaterial color={data.state === 'disabled' ? '#111' : (data.isAggro ? '#ff0000' : '#00ffff')} />
         </mesh>
 
         {/* Username Label */}
         <Text
           position={[0, 2.5, 0]}
           fontSize={0.3}
-          color={data.state === 'active' ? '#ff0055' : '#666666'}
+          color={data.state === 'active' ? (data.isAggro ? '#ff0055' : '#58cc02') : '#666666'}
           anchorX="center"
           anchorY="middle"
           outlineWidth={0.02}
           outlineColor="#000000"
         >
-          {data.id}
+          {data.id} {data.isAggro ? '💢' : '💤'}
         </Text>
       </group>
     </RigidBody>
