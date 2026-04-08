@@ -5,7 +5,7 @@
 
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
-import { Component, ReactNode } from 'react';
+import { Component, ReactNode, Suspense, useMemo } from 'react';
 import { Arena } from './Arena';
 import { Player } from './Player';
 import { Enemy } from './Enemy';
@@ -53,74 +53,90 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   }
 }
 
-function GameLoop() {
-  const updateTime = useGameStore(state => state.updateTime);
-  const updateEnemies = useGameStore(state => state.updateEnemies);
-  const cleanupEffects = useGameStore(state => state.cleanupEffects);
-
+function GameScene({ isMobile }: { isMobile: boolean }) {
   useFrame((_, delta) => {
+    const state = useGameStore.getState();
+    if (state.gameState !== 'playing') return;
     const now = Date.now();
-    updateTime(delta);
-    updateEnemies(now);
-    cleanupEffects(now);
+    state.updateTime(delta);
+    state.updateEnemies(now);
+    state.cleanupEffects(now);
   });
-  return null;
-}
-
-export function Game() {
-  const enemies = useGameStore(state => state.enemies);
-  const letters = useGameStore(state => state.letters);
-  const otherPlayerIds = useGameStore(
-    useShallow(state => Object.keys(state.otherPlayers))
-  );
-  const isMobile = useIsMobile();
 
   return (
-    <ErrorBoundary>
-      <Canvas 
-        shadows={!isMobile} 
-        camera={{ fov: 75 }}
-        dpr={isMobile ? [1, 1.5] : [1, 2]} // Lower DPR for mobile performance
-      >
+    <>
       <color attach="background" args={['#050510']} />
-      <fogExp2 attach="fog" args={['#050510', isMobile ? 0.04 : 0.025]} />
+      <fogExp2 attach="fog" args={['#050510', isMobile ? 0.05 : 0.025]} />
       
-      <ambientLight intensity={isMobile ? 0.8 : 0.5} />
-      <pointLight position={[0, 8, 0]} intensity={1.5} castShadow={!isMobile} distance={60} />
-      
-      {!isMobile && (
-        <>
-          <pointLight position={[25, 8, 25]} intensity={1.2} castShadow distance={60} />
-          <pointLight position={[-25, 8, -25]} intensity={1.2} castShadow distance={60} />
-          <pointLight position={[25, 8, -25]} intensity={1.2} castShadow distance={60} />
-          <pointLight position={[-25, 8, 25]} intensity={1.2} castShadow distance={60} />
-        </>
-      )}
+      <ambientLight intensity={isMobile ? 1.0 : 0.8} />
+      <pointLight position={[0, 15, 0]} intensity={2.5} distance={150} />
       
       <Physics gravity={[0, -20, 0]}>
-        <GameLoop />
         <Arena />
         <NPC />
         <Player />
-        {enemies.map(enemy => (
-          <Enemy key={enemy.id} data={enemy} />
-        ))}
-        {otherPlayerIds.map(id => (
-          <OtherPlayer key={id} id={id} />
-        ))}
-        {letters.map(letter => (
-          <LetterCube key={letter.id} data={letter} />
-        ))}
-        <Effects />
+        <Enemies />
+        <OtherPlayers />
+        <Letters />
       </Physics>
+      
+      <Effects />
+    </>
+  );
+}
 
-      {/* Bloom can be heavy on mobile, disable or simplify */}
-      {!isMobile && (
-        <EffectComposer>
-          <Bloom luminanceThreshold={1} mipmapBlur intensity={1.5} />
-        </EffectComposer>
-      )}
+function Enemies() {
+  const enemies = useGameStore(useShallow(state => state.enemies));
+  return (
+    <>
+      {enemies.map(enemy => (
+        <Enemy key={enemy.id} data={enemy} />
+      ))}
+    </>
+  );
+}
+
+function OtherPlayers() {
+  const otherPlayers = useGameStore(useShallow(state => state.otherPlayers));
+  const otherPlayerIds = useMemo(() => Object.keys(otherPlayers), [otherPlayers]);
+  return (
+    <>
+      {otherPlayerIds.map(id => (
+        <OtherPlayer key={id} id={id} />
+      ))}
+    </>
+  );
+}
+
+function Letters() {
+  const letters = useGameStore(useShallow(state => state.letters));
+  return (
+    <>
+      {letters.map(letter => (
+        <LetterCube key={letter.id} data={letter} />
+      ))}
+    </>
+  );
+}
+
+export function Game() {
+  const isMobile = useIsMobile();
+
+  return (
+    <Canvas 
+      shadows={false} 
+      camera={{ fov: 75 }}
+      dpr={1}
+      gl={{ 
+        antialias: false, 
+        powerPreference: "high-performance",
+        alpha: false,
+        stencil: false,
+        depth: true,
+        preserveDrawingBuffer: false
+      }}
+    >
+      <GameScene isMobile={isMobile} />
     </Canvas>
-    </ErrorBoundary>
   );
 }

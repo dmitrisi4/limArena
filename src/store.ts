@@ -66,7 +66,7 @@ export interface Quest {
 }
 
 const LESSON_WORDS = ["APPLE", "HELLO", "GREEN", "STUDY", "LEARN", "WORLD", "BREAD", "WATER", "HOUSE", "FRIEND"];
-export const SAFE_ZONE_RADIUS = 60;
+export const SAFE_ZONE_RADIUS = 30;
 
 interface GameStore {
   gameState: GameState;
@@ -125,12 +125,12 @@ interface GameStore {
   }>) => void;
 }
 
-const INITIAL_ENEMIES: EnemyData[] = Array.from({ length: 60 }).map((_, i) => ({
+const INITIAL_ENEMIES: EnemyData[] = Array.from({ length: 4 }).map((_, i) => ({
   id: `bot-${i}`,
   position: [
-    (Math.random() - 0.5) * 900, 
+    (Math.random() - 0.5) * 150, 
     1, 
-    (Math.random() - 0.5) * 900
+    (Math.random() - 0.5) * 150
   ],
   state: 'active',
   disabledUntil: 0
@@ -195,9 +195,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       delete otherPlayers[newSocket!.id!];
       
       const targetWord = LESSON_WORDS[0];
-      const initialLetters: LetterData[] = Array.from({ length: 30 }).map((_, i) => ({
+      const initialLetters: LetterData[] = Array.from({ length: 6 }).map((_, i) => ({
         id: `letter-init-${i}`,
-        position: [(Math.random() - 0.5) * 800, 1, (Math.random() - 0.5) * 800],
+        position: [(Math.random() - 0.5) * 150, 1, (Math.random() - 0.5) * 150],
         letter: String.fromCharCode(65 + Math.floor(Math.random() * 26)),
         collected: false
       }));
@@ -321,9 +321,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         });
       });
     const targetWord = LESSON_WORDS[0];
-    const initialLetters: LetterData[] = Array.from({ length: 30 }).map((_, i) => ({
+    const initialLetters: LetterData[] = Array.from({ length: 6 }).map((_, i) => ({
       id: `letter-init-${i}`,
-      position: [(Math.random() - 0.5) * 800, 1, (Math.random() - 0.5) * 800],
+      position: [(Math.random() - 0.5) * 150, 1, (Math.random() - 0.5) * 150],
       letter: String.fromCharCode(65 + Math.floor(Math.random() * 26)),
       collected: false
     }));

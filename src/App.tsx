@@ -3,27 +3,34 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, memo } from 'react';
 import { Game } from './components/Game';
 import { MobileControls } from './components/MobileControls';
 import { useIsMobile } from './lib/useIsMobile';
 import { useGameStore } from './store';
 
-function HUD() {
-  const gameState = useGameStore(state => state.gameState);
-  const score = useGameStore(state => state.score);
-  const timeLeft = useGameStore(state => state.timeLeft);
-  const playerState = useGameStore(state => state.playerState);
-  const otherPlayers = useGameStore(state => state.otherPlayers);
-  const events = useGameStore(state => state.events);
-  const currentQuest = useGameStore(state => state.currentQuest);
-  const lessonIndex = useGameStore(state => state.lessonIndex);
-  const totalLessons = useGameStore(state => state.totalLessons);
-  const playerCount = Object.keys(otherPlayers).length + 1;
-  const leaveGame = useGameStore(state => state.leaveGame);
-  const isMobile = useIsMobile();
+import { useShallow } from 'zustand/react/shallow';
 
-  const inventory = useGameStore(state => state.inventory);
+function HUD() {
+  const {
+    gameState, score, timeLeft, playerState, otherPlayers, events,
+    currentQuest, lessonIndex, totalLessons, leaveGame, inventory
+  } = useGameStore(useShallow(state => ({
+    gameState: state.gameState,
+    score: state.score,
+    timeLeft: state.timeLeft,
+    playerState: state.playerState,
+    otherPlayers: state.otherPlayers,
+    events: state.events,
+    currentQuest: state.currentQuest,
+    lessonIndex: state.lessonIndex,
+    totalLessons: state.totalLessons,
+    leaveGame: state.leaveGame,
+    inventory: state.inventory
+  })));
+  
+  const playerCount = Object.keys(otherPlayers).length + 1;
+  const isMobile = useIsMobile();
 
   return (
     <>
@@ -168,17 +175,21 @@ function HUD() {
 
 
 
+const MemoizedGame = memo(Game);
+
 export default function App() {
-  const gameState = useGameStore(state => state.gameState);
-  const score = useGameStore(state => state.score);
-  const startGame = useGameStore(state => state.startGame);
+  const { gameState, score, startGame } = useGameStore(useShallow(state => ({
+    gameState: state.gameState,
+    score: state.score,
+    startGame: state.startGame
+  })));
   const isMobile = useIsMobile();
 
   return (
     <div className="w-screen h-screen bg-black relative overflow-hidden font-mono select-none">
       {/* 3D Canvas */}
       <div className="absolute inset-0">
-        <Game />
+        <MemoizedGame />
       </div>
 
       {/* UI Overlay */}

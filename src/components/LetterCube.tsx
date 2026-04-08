@@ -8,21 +8,17 @@ import { Text, Float } from '@react-three/drei';
 import { useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore, LetterData } from '../store';
 
 export function LetterCube({ data }: { data: LetterData }) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const ringRef = useRef<THREE.Mesh>(null);
-  const collectLetter = useGameStore(state => state.collectLetter);
+  const collectLetter = useGameStore(useShallow(state => state.collectLetter));
 
   useFrame((state) => {
     if (meshRef.current) {
       meshRef.current.rotation.y += 0.02;
       meshRef.current.rotation.x += 0.01;
-    }
-    if (ringRef.current) {
-      ringRef.current.rotation.z += 0.05;
-      ringRef.current.rotation.x = Math.sin(state.clock.elapsedTime) * 0.5;
     }
   });
 
@@ -30,7 +26,7 @@ export function LetterCube({ data }: { data: LetterData }) {
 
   return (
     <group position={data.position}>
-      <Float speed={3} rotationIntensity={1.5} floatIntensity={1.5}>
+      <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
         <RigidBody
           type="fixed"
           sensor
@@ -41,67 +37,48 @@ export function LetterCube({ data }: { data: LetterData }) {
           }}
         >
           {/* Main Cube */}
-          <mesh ref={meshRef} castShadow>
-            <boxGeometry args={[1.5, 1.5, 1.5]} />
-            <meshStandardMaterial color="#fcd34d" metalness={0.9} roughness={0.1} emissive="#fcd34d" emissiveIntensity={0.3} />
+          <mesh ref={meshRef}>
+            <boxGeometry args={[1.2, 1.2, 1.2]} />
+            <meshStandardMaterial color="#fcd34d" metalness={0.6} roughness={0.4} emissive="#fcd34d" emissiveIntensity={0.2} />
             
-            {/* Letter on each face - Bold and Large */}
-            {[
-              [0, 0, 0.76],
-              [0, 0, -0.76],
-              [0.76, 0, 0],
-              [-0.76, 0, 0],
-              [0, 0.76, 0],
-              [0, -0.76, 0]
-            ].map((pos, i) => (
-              <Text
-                key={i}
-                position={pos as [number, number, number]}
-                rotation={[
-                  i === 4 ? -Math.PI / 2 : i === 5 ? Math.PI / 2 : 0,
-                  i === 2 ? Math.PI / 2 : i === 3 ? -Math.PI / 2 : i === 1 ? Math.PI : 0,
-                  0
-                ]}
-                fontSize={1.2}
-                color="black"
-                fontWeight="bold"
-                anchorX="center"
-                anchorY="middle"
-              >
-                {data.letter}
-              </Text>
-            ))}
+            <Text
+              position={[0, 0, 0.61]}
+              fontSize={0.8}
+              color="black"
+              fontWeight="bold"
+              anchorX="center"
+              anchorY="middle"
+            >
+              {data.letter}
+            </Text>
+            <Text
+              position={[0, 0, -0.61]}
+              rotation={[0, Math.PI, 0]}
+              fontSize={0.8}
+              color="black"
+              fontWeight="bold"
+              anchorX="center"
+              anchorY="middle"
+            >
+              {data.letter}
+            </Text>
           </mesh>
           
           {/* Floating Letter Above */}
           <Text
-            position={[0, 2.5, 0]}
-            fontSize={1.8}
+            position={[0, 2, 0]}
+            fontSize={1.2}
             color="#fcd34d"
             fontWeight="bold"
             anchorX="center"
             anchorY="middle"
-            outlineWidth={0.08}
+            outlineWidth={0.04}
             outlineColor="black"
           >
             {data.letter}
           </Text>
 
-          {/* Spinning Ring */}
-          <mesh ref={ringRef}>
-            <torusGeometry args={[1.8, 0.08, 16, 32]} />
-            <meshBasicMaterial color="#fcd34d" toneMapped={false} />
-          </mesh>
-          
-          {/* Glow effect */}
-          <mesh scale={2}>
-            <boxGeometry args={[1, 1, 1]} />
-            <meshBasicMaterial color="#fcd34d" transparent opacity={0.1} />
-          </mesh>
-          
-          <pointLight color="#fcd34d" intensity={3} distance={8} />
-          
-          <CuboidCollider args={[1.2, 1.2, 1.2]} />
+          <CuboidCollider args={[1, 1, 1]} />
         </RigidBody>
       </Float>
     </group>

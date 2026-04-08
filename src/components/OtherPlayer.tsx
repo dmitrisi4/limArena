@@ -10,8 +10,10 @@ import * as THREE from 'three';
 import { useGameStore } from '../store';
 import { Text } from '@react-three/drei';
 
+import { useShallow } from 'zustand/react/shallow';
+
 export function OtherPlayer({ id }: { id: string }) {
-  const data = useGameStore(state => state.otherPlayers[id]);
+  const data = useGameStore(useShallow(state => state.otherPlayers[id]));
   const body = useRef<RapierRigidBody>(null);
   const groupRef = useRef<THREE.Group>(null);
 

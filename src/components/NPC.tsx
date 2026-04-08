@@ -36,10 +36,14 @@ function RobotModel({ color, emissive }: { color: string, emissive: string }) {
   );
 }
 
+import { useShallow } from 'zustand/react/shallow';
+
 export function CrafterNPC() {
-  const craftWord = useGameStore(state => state.craftWord);
-  const currentQuest = useGameStore(state => state.currentQuest);
-  const inventory = useGameStore(state => state.inventory);
+  const { craftWord, currentQuest, inventory } = useGameStore(useShallow(state => ({
+    craftWord: state.craftWord,
+    currentQuest: state.currentQuest,
+    inventory: state.inventory
+  })));
   const [isNear, setIsNear] = useState(false);
 
   const canCraft = currentQuest && !currentQuest.isCompleted && currentQuest.targetWord.split('').every(char => {
@@ -49,13 +53,11 @@ export function CrafterNPC() {
   });
 
   return (
-    <group position={[10, 0, 10]}>
-      <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
-        <RigidBody type="fixed" colliders={false}>
-          <RobotModel color="#58cc02" emissive="#58cc02" />
-          <CuboidCollider args={[5, 5, 5]} sensor onIntersectionEnter={() => setIsNear(true)} onIntersectionExit={() => setIsNear(false)} />
-        </RigidBody>
-      </Float>
+    <group position={[6, 0, 6]}>
+      <RigidBody type="fixed" colliders={false}>
+        <RobotModel color="#58cc02" emissive="#58cc02" />
+        <CuboidCollider args={[4, 4, 4]} sensor onIntersectionEnter={() => setIsNear(true)} onIntersectionExit={() => setIsNear(false)} />
+      </RigidBody>
 
       {isNear && (
         <Html position={[0, 5, 0]} center distanceFactor={10}>
@@ -80,9 +82,11 @@ export function CrafterNPC() {
 }
 
 export function TraderNPC() {
-  const inventory = useGameStore(state => state.inventory);
-  const currentQuest = useGameStore(state => state.currentQuest);
-  const exchangeLetters = useGameStore(state => state.exchangeLetters);
+  const { inventory, currentQuest, exchangeLetters } = useGameStore(useShallow(state => ({
+    inventory: state.inventory,
+    currentQuest: state.currentQuest,
+    exchangeLetters: state.exchangeLetters
+  })));
   const [isNear, setIsNear] = useState(false);
 
   const neededLetters = currentQuest ? currentQuest.targetWord.split('').filter(char => {
@@ -102,13 +106,11 @@ export function TraderNPC() {
   };
 
   return (
-    <group position={[-10, 0, 10]}>
-      <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
-        <RigidBody type="fixed" colliders={false}>
-          <RobotModel color="#00ffff" emissive="#00ffff" />
-          <CuboidCollider args={[5, 5, 5]} sensor onIntersectionEnter={() => setIsNear(true)} onIntersectionExit={() => setIsNear(false)} />
-        </RigidBody>
-      </Float>
+    <group position={[-6, 0, 6]}>
+      <RigidBody type="fixed" colliders={false}>
+        <RobotModel color="#00ffff" emissive="#00ffff" />
+        <CuboidCollider args={[4, 4, 4]} sensor onIntersectionEnter={() => setIsNear(true)} onIntersectionExit={() => setIsNear(false)} />
+      </RigidBody>
 
       {isNear && (
         <Html position={[0, 5, 0]} center distanceFactor={10}>

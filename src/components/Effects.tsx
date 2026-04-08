@@ -8,19 +8,24 @@ import { useGameStore } from '../store';
 import * as THREE from 'three';
 import { useRef, useMemo, useEffect } from 'react';
 
+import { useShallow } from 'zustand/react/shallow';
+
+const LASER_GEOM = new THREE.BoxGeometry(0.2, 0.2, 1);
+const PARTICLE_GEOM = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+
 export function Effects() {
-  const lasers = useGameStore(state => state.lasers);
-  const particles = useGameStore(state => state.particles);
+  const lasers = useGameStore(useShallow(state => state.lasers));
+  const particles = useGameStore(useShallow(state => state.particles));
 
   return (
-    <>
+    <group>
       {lasers.map(laser => (
         <Laser key={laser.id} start={laser.start} end={laser.end} color={laser.color} />
       ))}
       {particles.map(p => (
         <ParticleBurst key={p.id} position={p.position} color={p.color} />
       ))}
-    </>
+    </group>
   );
 }
 
@@ -51,45 +56,52 @@ function Laser({ start, end, color }: { start: [number, number, number], end: [n
   });
 
   return (
-    <mesh ref={ref} position={position} rotation={rotation}>
-      <boxGeometry args={[0.2, 0.2, length]} />
+    <mesh ref={ref} position={position} rotation={rotation} scale={[1, 1, length]}>
+      <primitive object={LASER_GEOM} attach="geometry" />
       <meshBasicMaterial color={color} toneMapped={false} transparent opacity={1} />
     </mesh>
   );
 }
 
 function ParticleBurst({ position, color }: { position: [number, number, number], color: string }) {
-  const group = useRef<THREE.Group>(null);
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const count = 10; // Reduced from 15
   
   const particles = useMemo(() => {
-    return Array.from({ length: 15 }).map(() => ({
-      velocity: new THREE.Vector3(
+    return Array.from({ length: count }).map(() => ({
+      pos: new THREE.Vector3(0, 0, 0),
+      vel: new THREE.Vector3(
         (Math.random() - 0.5) * 8,
         (Math.random() - 0.5) * 8,
         (Math.random() - 0.5) * 8
-      )
+      ),
+      scale: 1,
+      opacity: 1
     }));
   }, []);
 
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
   useFrame((_, delta) => {
-    if (group.current) {
-      group.current.children.forEach((child, i) => {
-        child.position.addScaledVector(particles[i].velocity, delta);
-        const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
-        mat.opacity = Math.max(0, mat.opacity - delta * 3);
-        child.scale.setScalar(Math.max(0.001, child.scale.x - delta * 2));
+    if (meshRef.current) {
+      particles.forEach((p, i) => {
+        p.pos.addScaledVector(p.vel, delta);
+        p.scale = Math.max(0.001, p.scale - delta * 2);
+        p.opacity = Math.max(0, p.opacity - delta * 3);
+        
+        dummy.position.copy(p.pos);
+        dummy.scale.setScalar(p.scale);
+        dummy.updateMatrix();
+        meshRef.current!.setMatrixAt(i, dummy.matrix);
       });
+      meshRef.current.instanceMatrix.needsUpdate = true;
+      (meshRef.current.material as THREE.MeshBasicMaterial).opacity = particles[0].opacity;
     }
   });
 
   return (
-    <group ref={group} position={position}>
-      {particles.map((_, i) => (
-        <mesh key={i}>
-          <boxGeometry args={[0.05, 0.05, 0.05]} />
-          <meshBasicMaterial color={color} transparent opacity={1} toneMapped={false} />
-        </mesh>
-      ))}
-    </group>
+    <instancedMesh ref={meshRef} args={[PARTICLE_GEOM, undefined, count]} position={position}>
+      <meshBasicMaterial color={color} transparent opacity={1} toneMapped={false} />
+    </instancedMesh>
   );
 }

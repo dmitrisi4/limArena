@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, RapierRigidBody, useRapier, CapsuleCollider } from '@react-three/rapier';
 import { PointerLockControls } from '@react-three/drei';
@@ -18,12 +18,6 @@ export function Player() {
   const { camera } = useThree();
   const { rapier, world } = useRapier();
   
-  const playerState = useGameStore(state => state.playerState);
-  const gameState = useGameStore(state => state.gameState);
-  const addLaser = useGameStore(state => state.addLaser);
-  const hitEnemy = useGameStore(state => state.hitEnemy);
-  const addParticles = useGameStore(state => state.addParticles);
-
   const keys = useRef({ 
     w: false, a: false, s: false, d: false,
     arrowup: false, arrowdown: false, arrowleft: false, arrowright: false 
@@ -36,11 +30,11 @@ export function Player() {
   const gunBarrelRef = useRef<THREE.Group>(null);
 
   // More robust mobile detection (checks for touch support)
-  const isTouchDevice = useRef(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   useEffect(() => {
-    isTouchDevice.current = window.matchMedia('(pointer: coarse)').matches || 
+    setIsTouchDevice(window.matchMedia('(pointer: coarse)').matches || 
                            'ontouchstart' in window || 
-                           navigator.maxTouchPoints > 0;
+                           navigator.maxTouchPoints > 0);
   }, []);
 
   useEffect(() => {
@@ -64,11 +58,10 @@ export function Player() {
     };
   }, []);
 
-  const updatePlayerPosition = useGameStore(state => state.updatePlayerPosition);
-
   // Shooting logic function
   const shoot = () => {
-    if (gameState !== 'playing' || playerState !== 'active') return;
+    const gState = useGameStore.getState();
+    if (gState.gameState !== 'playing' || gState.playerState !== 'active') return;
     
     // Rate limit shooting
     const now = Date.now();
@@ -113,16 +106,16 @@ export function Player() {
         if (name) {
           // Check if it's a bot
           if (name.startsWith('bot-')) {
-            hitEnemy(name, true);
+            gState.hitEnemy(name, true);
           } 
           // Check if it's another player (socket ID)
-          else if (name !== 'player' && useGameStore.getState().otherPlayers[name]) {
-            hitEnemy(name, true);
+          else if (name !== 'player' && gState.otherPlayers[name]) {
+            gState.hitEnemy(name, true);
           }
         }
       }
       
-      addParticles(endPos, '#00ffff');
+      gState.addParticles(endPos, '#00ffff');
     } else {
       endPos = [
         camera.position.x + raycaster.ray.direction.x * MAX_LASER_DIST,
@@ -131,13 +124,14 @@ export function Player() {
       ];
     }
 
-    addLaser(startPos, endPos, '#00ffff');
+    gState.addLaser(startPos, endPos, '#00ffff');
   };
 
   useFrame((_, delta) => {
-    if (!body.current || gameState !== 'playing') return;
+    const gState = useGameStore.getState();
+    if (!body.current || gState.gameState !== 'playing') return;
 
-    const mobileInput = useGameStore.getState().mobileInput;
+    const mobileInput = gState.mobileInput;
 
     // Handle Mobile Shooting
     if (mobileInput.shooting) {
@@ -157,40 +151,7 @@ export function Player() {
     const right = new THREE.Vector3();
     right.crossVectors(forward, camera.up).normalize();
 
-    // Combine keyboard and joystick input
-    // Joystick Y is inverted (up is negative), so we negate it for forward movement
-    // Actually, in Joystick component: Up is negative Y.
-    // Forward movement should be positive.
-    // Let's assume Joystick Up -> y < 0.
-    // We want moveZ to be negative for forward.
-    // So if joystick.y is -1, moveZ should be -1.
-    // So we add joystick.y directly?
-    // Wait, standard WASD: W -> moveZ = -1 (forward in Threejs is -Z usually? No, camera looks down -Z).
-    // Yes, forward is -Z.
-    // W key: moveZ = -1.
-    // Joystick Up (y < 0): moveZ should be negative.
-    // So we add mobileInput.move.y.
-    
-    const moveZ = (k.w ? 1 : 0) - (k.s ? 1 : 0) + (mobileInput.move.y * -1); // Invert joystick Y to match W/S logic (W is +1 in my logic below? No wait)
-    
-    // Original logic:
-    // const moveZ = (k.w ? 1 : 0) - (k.s ? 1 : 0);
-    // const direction = new THREE.Vector3();
-    // direction.addScaledVector(forward, moveZ);
-    
-    // If I press W, moveZ is 1.
-    // forward vector points in camera direction.
-    // If I add scaled vector (forward * 1), I move forward.
-    // So W -> 1 is correct.
-    
-    // Joystick Up -> y is negative (e.g. -1).
-    // We want to move forward (1).
-    // So we need -y.
     const joyMoveZ = -mobileInput.move.y;
-    
-    // Joystick Right -> x is positive.
-    // D key -> moveX = 1.
-    // We want moveX = 1.
     const joyMoveX = mobileInput.move.x;
 
     const combinedMoveZ = (k.w || k.arrowup ? 1 : 0) - (k.s || k.arrowdown ? 1 : 0) + joyMoveZ;
@@ -201,7 +162,6 @@ export function Player() {
     direction.addScaledVector(right, combinedMoveX);
     
     if (direction.lengthSq() > 0) {
-      // Clamp length to 1 to prevent faster diagonal movement if both inputs active (though rare)
       if (direction.lengthSq() > 1) direction.normalize();
       direction.multiplyScalar(SPEED);
     }
@@ -211,20 +171,8 @@ export function Player() {
     // Mobile Look Rotation
     if (Math.abs(mobileInput.look.x) > 0.01 || Math.abs(mobileInput.look.y) > 0.01) {
       const lookSpeed = 2.0 * delta;
-      // Yaw (Left/Right) - Rotate around Y axis
-      // Joystick Right (x > 0) -> Turn Right (negative rotation around Y in standard right-handed? No, usually -Y is right? Let's test)
-      // PointerLockControls: moving mouse right -> camera rotates right.
-      // Euler Y decreases?
       camera.rotation.y -= mobileInput.look.x * lookSpeed;
-      
-      // Pitch (Up/Down) - Rotate around X axis
-      // Joystick Up (y < 0) -> Look Up.
-      // Looking up means increasing X rotation? Or decreasing?
-      // Usually looking up is positive X?
-      // Let's try standard mapping.
       camera.rotation.x -= mobileInput.look.y * lookSpeed;
-      
-      // Clamp pitch to avoid flipping
       camera.rotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, camera.rotation.x));
     }
 
@@ -247,24 +195,25 @@ export function Player() {
     // Emit position to server
     const now = Date.now();
     if (now - lastEmitTime.current > 50) {
-      updatePlayerPosition([pos.x, pos.y, pos.z], camera.rotation.y);
+      gState.updatePlayerPosition([pos.x, pos.y, pos.z], camera.rotation.y);
       lastEmitTime.current = now;
     }
   });
 
   useEffect(() => {
     const handleClick = () => {
-      if (document.pointerLockElement && gameState === 'playing' && playerState === 'active') {
+      const gState = useGameStore.getState();
+      if (document.pointerLockElement && gState.gameState === 'playing' && gState.playerState === 'active') {
         shoot();
       }
     };
     window.addEventListener('mousedown', handleClick);
     return () => window.removeEventListener('mousedown', handleClick);
-  }, [gameState, playerState, camera, world, rapier, hitEnemy, addParticles, addLaser]);
+  }, [camera, world, rapier]);
 
   return (
     <>
-      {!isTouchDevice.current && <PointerLockControls />}
+      {!isTouchDevice && <PointerLockControls />}
       <RigidBody
         ref={body}
         colliders={false}
@@ -291,15 +240,6 @@ export function Player() {
           <mesh position={[0, 0.05, -0.15]} rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[0.03, 0.03, 0.3, 8]} />
             <meshStandardMaterial color="#111" metalness={0.9} roughness={0.1} />
-          </mesh>
-          {/* Neon accents */}
-          <mesh position={[0, 0.08, 0.1]}>
-            <boxGeometry args={[0.11, 0.02, 0.2]} />
-            <meshBasicMaterial color="#00ffff" toneMapped={false} />
-          </mesh>
-          <mesh position={[0, 0.05, -0.25]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.035, 0.035, 0.05, 8]} />
-            <meshBasicMaterial color="#ff00ff" toneMapped={false} />
           </mesh>
           {/* Barrel Tip Reference */}
           <group ref={gunBarrelRef} position={[0, 0.05, -0.3]} />

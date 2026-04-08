@@ -4,9 +4,9 @@
 */
 
 import { RigidBody } from '@react-three/rapier';
-import { Grid, Stars } from '@react-three/drei';
+import { Grid, Stars, useTexture } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect, Suspense } from 'react';
 import * as THREE from 'three';
 import { useGameStore, SAFE_ZONE_RADIUS } from '../store';
 
@@ -23,42 +23,30 @@ function mulberry32(a: number) {
 }
 const rng = mulberry32(12345);
 
-const OBSTACLES = Array.from({ length: 300 }).map(() => {
-  const type = 'box';
-    const x = (rng() - 0.5) * 900; // Larger map
-    const z = (rng() - 0.5) * 900;
-  
-  // Keep city area clear
-  if (Math.sqrt(x * x + z * z) < SAFE_ZONE_RADIUS + 10) return null;
-
-  const height = rng() * 8 + 6;
-  const isHorizontal = rng() > 0.5;
-  const width = isHorizontal ? rng() * 25 + 10 : rng() * 3 + 1;
-  const depth = isHorizontal ? rng() * 3 + 1 : rng() * 25 + 10;
-  const rotation = 0; // Axis aligned for maze feel
-  const color = rng() > 0.5 ? "#00ffff" : "#ff00ff";
-
-  return { type, position: [x, height / 2 - 0.5, z], size: [width, height, depth], rotation: [0, rotation, 0], color };
-}).filter(Boolean);
+const BOX_GEOM = new THREE.BoxGeometry(1, 1, 1);
+const CYLINDER_GEOM = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
+const OBSTACLE_MAT = new THREE.MeshStandardMaterial({ color: "#1a1a2e", roughness: 0.6, metalness: 0.5 });
+const NEON_MAT_CYAN = new THREE.MeshBasicMaterial({ color: "#00ffff", toneMapped: false });
+const NEON_MAT_MAGENTA = new THREE.MeshBasicMaterial({ color: "#ff00ff", toneMapped: false });
 
 export function Arena() {
   const isMobile = useIsMobile();
   
   const obstacles = useMemo(() => {
-    const count = isMobile ? 200 : 600;
+    const count = isMobile ? 5 : 15; // Minimum for stability
     const rngLocal = mulberry32(12345);
     return Array.from({ length: count }).map(() => {
       const type = 'box';
-      const x = (rngLocal() - 0.5) * 900;
-      const z = (rngLocal() - 0.5) * 900;
+      const x = (rngLocal() - 0.5) * 300;
+      const z = (rngLocal() - 0.5) * 300;
       
       if (Math.sqrt(x * x + z * z) < SAFE_ZONE_RADIUS + 10) return null;
 
-      const height = rngLocal() * 8 + 6;
+      const height = rngLocal() * 5 + 3;
       const isHorizontal = rngLocal() > 0.5;
-      const width = isHorizontal ? rngLocal() * 25 + 10 : rngLocal() * 3 + 1;
-      const depth = isHorizontal ? rngLocal() * 3 + 1 : rngLocal() * 25 + 10;
-      const color = rngLocal() > 0.5 ? "#00ffff" : "#ff00ff";
+      const width = isHorizontal ? rngLocal() * 10 + 5 : rngLocal() * 1.5 + 1;
+      const depth = isHorizontal ? rngLocal() * 1.5 + 1 : rngLocal() * 10 + 5;
+      const color = rngLocal() > 0.5 ? "cyan" : "magenta";
 
       return { type, position: [x, height / 2 - 0.5, z], size: [width, height, depth], rotation: [0, 0, 0], color };
     }).filter(Boolean);
@@ -68,37 +56,32 @@ export function Arena() {
     <group>
       {/* Floor */}
       <RigidBody type="fixed" name="floor" friction={0}>
-        <mesh receiveShadow={!isMobile} position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[1000, 1000]} />
+        <mesh position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[600, 600]} />
           <meshStandardMaterial color="#050510" roughness={0.2} metalness={0.8} />
         </mesh>
       </RigidBody>
-      <Grid position={[0, -0.49, 0]} args={[1000, 1000]} cellColor="#ff00ff" sectionColor="#00ffff" fadeDistance={500} cellThickness={0.5} sectionThickness={1.5} />
+      {!isMobile && <Grid position={[0, -0.49, 0]} args={[600, 600]} cellColor="#ff00ff" sectionColor="#00ffff" fadeDistance={300} cellThickness={0.5} sectionThickness={1.5} />}
 
       {/* Safe Zone / City */}
       <CityFence radius={SAFE_ZONE_RADIUS} />
 
       {/* Ceiling */}
       <RigidBody type="fixed" name="ceiling">
-        <mesh receiveShadow={!isMobile} position={[0, 20, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[1000, 1000]} />
+        <mesh position={[0, 20, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[600, 600]} />
           <meshStandardMaterial color="#000000" roughness={1} />
         </mesh>
       </RigidBody>
 
       {/* Atmosphere */}
-      {!isMobile && (
-        <>
-          <Stars radius={200} depth={100} count={10000} factor={4} saturation={1} fade speed={1} />
-          <AmbientParticles />
-        </>
-      )}
+      {/* Atmosphere disabled for stability */}
 
       {/* Walls */}
-      <Wall name="wall-n" position={[0, 5, -500]} rotation={[0, 0, 0]} isMobile={isMobile} />
-      <Wall name="wall-s" position={[0, 5, 500]} rotation={[0, Math.PI, 0]} isMobile={isMobile} />
-      <Wall name="wall-e" position={[500, 5, 0]} rotation={[0, -Math.PI / 2, 0]} isMobile={isMobile} />
-      <Wall name="wall-w" position={[-500, 5, 0]} rotation={[0, Math.PI / 2, 0]} isMobile={isMobile} />
+      <Wall name="wall-n" position={[0, 5, -300]} rotation={[0, 0, 0]} isMobile={isMobile} />
+      <Wall name="wall-s" position={[0, 5, 300]} rotation={[0, Math.PI, 0]} isMobile={isMobile} />
+      <Wall name="wall-e" position={[300, 5, 0]} rotation={[0, -Math.PI / 2, 0]} isMobile={isMobile} />
+      <Wall name="wall-w" position={[-300, 5, 0]} rotation={[0, Math.PI / 2, 0]} isMobile={isMobile} />
 
       {/* Obstacles */}
       {obstacles.map((obs, i) => {
@@ -107,27 +90,19 @@ export function Arena() {
           <RigidBody 
             key={i} 
             type="fixed" 
-            colliders="hull"
+            colliders="cuboid"
             name={`obstacle-${i}`}
             position={obs.position as [number, number, number]}
             rotation={obs.rotation as [number, number, number]}
           >
-            <mesh receiveShadow={!isMobile} castShadow={!isMobile}>
-              {obs.type === 'box' ? (
-                <boxGeometry args={obs.size as [number, number, number]} />
-              ) : (
-                <cylinderGeometry args={[obs.size[0]/2, obs.size[0]/2, obs.size[1], 16]} />
-              )}
-              <meshStandardMaterial color="#1a1a2e" roughness={0.6} metalness={0.5} />
+            <mesh receiveShadow={false} castShadow={false} scale={obs.size as [number, number, number]}>
+              <primitive object={obs.type === 'box' ? BOX_GEOM : CYLINDER_GEOM} attach="geometry" />
+              <primitive object={OBSTACLE_MAT} attach="material" />
               
               {/* Neon accent on obstacles */}
-              <mesh position={[0, obs.size[1]/2 - 0.5, 0]}>
-                {obs.type === 'box' ? (
-                  <boxGeometry args={[obs.size[0] + 0.1, 0.2, obs.size[2] + 0.1]} />
-                ) : (
-                  <cylinderGeometry args={[obs.size[0]/2 + 0.1, obs.size[0]/2 + 0.1, 0.2, 16]} />
-                )}
-                <meshBasicMaterial color={obs.color} toneMapped={false} />
+              <mesh position={[0, 0.45, 0]} scale={[1.05, 0.05, 1.05]}>
+                <primitive object={obs.type === 'box' ? BOX_GEOM : CYLINDER_GEOM} attach="geometry" />
+                <primitive object={obs.color === 'cyan' ? NEON_MAT_CYAN : NEON_MAT_MAGENTA} attach="material" />
               </mesh>
             </mesh>
           </RigidBody>
@@ -142,17 +117,17 @@ function Wall({ name, position, rotation, isMobile }: { name: string, position: 
     <RigidBody type="fixed" name={name} position={position} rotation={rotation}>
       {/* Solid Wall */}
       <mesh>
-        <boxGeometry args={[1000, 10, 1]} />
+        <boxGeometry args={[600, 10, 1]} />
         <meshStandardMaterial color="#0a0a1a" roughness={0.8} metalness={0.2} />
       </mesh>
       {/* Glowing Base Line */}
       <mesh position={[0, -4.5, 0.51]}>
-        <planeGeometry args={[1000, 1]} />
+        <planeGeometry args={[600, 1]} />
         <meshBasicMaterial color="#ff00ff" toneMapped={false} />
       </mesh>
       {/* Glowing Top Line */}
       <mesh position={[0, 4.5, 0.51]}>
-        <planeGeometry args={[1000, 1]} />
+        <planeGeometry args={[600, 1]} />
         <meshBasicMaterial color="#00ffff" toneMapped={false} />
       </mesh>
     </RigidBody>
@@ -194,16 +169,43 @@ function CityFence({ radius }: { radius: number }) {
       })}
       
       {/* City Floor */}
+      <CityFloor radius={radius} />
+    </group>
+  );
+}
+
+function CityFloor({ radius }: { radius: number }) {
+  const texture = useTexture('https://picsum.photos/seed/metal/512/512');
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(4, 4);
+
+  return (
+    <group>
       <mesh position={[0, -0.48, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[radius, 32]} />
-        <meshStandardMaterial color="#1a1a2e" roughness={0.8} />
+        <meshStandardMaterial 
+          map={texture}
+          color="#2a2a4e" 
+          roughness={0.4} 
+          metalness={0.6} 
+        />
       </mesh>
+      {/* Small grid inside city for detail */}
+      <Grid 
+        position={[0, -0.47, 0]} 
+        args={[radius * 2, radius * 2]} 
+        cellColor="#58cc02" 
+        sectionColor="#58cc02" 
+        fadeDistance={radius * 2} 
+        cellThickness={0.2} 
+        sectionThickness={0.5} 
+      />
     </group>
   );
 }
 
 function AmbientParticles() {
-  const count = 1500;
+  const count = 800;
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
 
