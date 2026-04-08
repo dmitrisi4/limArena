@@ -210,19 +210,20 @@ function CityFence({ radius }: { radius: number }) {
 }
 
 function CityFloor({ radius }: { radius: number }) {
-  const texture = useTexture('https://picsum.photos/seed/stylized-pavement/512/512');
+  // Using a reliable high-quality mossy cobblestone texture from Polyhaven
+  const texture = useTexture('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/mossy_cobblestone/mossy_cobblestone_diff_1k.jpg');
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(6, 6);
 
   return (
     <group>
       <mesh position={[0, -0.48, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[radius, 32]} />
+        <circleGeometry args={[radius, 64]} />
         <meshStandardMaterial 
           map={texture}
-          color="#888" 
-          roughness={0.6} 
-          metalness={0.2} 
+          color="#ffffff" 
+          roughness={0.9} 
+          metalness={0.1} 
         />
       </mesh>
     </group>
