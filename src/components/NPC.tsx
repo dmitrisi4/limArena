@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Float, Text, Html } from '@react-three/drei';
+import { Float, Text, Html, useTexture } from '@react-three/drei';
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
 import * as THREE from 'three';
 import { useGameStore } from '../store';
 
 function RobotModel({ color, emissive }: { color: string, emissive: string }) {
   const meshRef = useRef<THREE.Group>(null);
+  const metalTexture = useTexture('https://picsum.photos/seed/stylized-metal/512/512');
   
   useFrame((state) => {
     if (meshRef.current) {
@@ -26,7 +27,7 @@ function RobotModel({ color, emissive }: { color: string, emissive: string }) {
       {/* Main Body */}
       <mesh position={[0, 1.2, 0]}>
         <sphereGeometry args={[0.8, 16, 16]} />
-        <meshStandardMaterial color={color} roughness={0.2} metalness={0.8} />
+        <meshStandardMaterial map={metalTexture} color={color} roughness={0.2} metalness={0.8} />
       </mesh>
 
       {/* Screen/Face */}

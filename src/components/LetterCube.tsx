@@ -4,12 +4,52 @@
 */
 
 import { RigidBody, CuboidCollider } from '@react-three/rapier';
-import { Text, Float } from '@react-three/drei';
-import { useRef } from 'react';
+import { Text, Float, useTexture } from '@react-three/drei';
+import { useRef, Suspense } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useShallow } from 'zustand/react/shallow';
 import { useGameStore, LetterData } from '../store';
+
+function LetterModel({ data, meshRef }: { data: LetterData, meshRef: React.RefObject<THREE.Mesh> }) {
+  const goldTexture = useTexture('https://picsum.photos/seed/gold-texture/512/512');
+  
+  return (
+    <mesh ref={meshRef}>
+      <boxGeometry args={[1.2, 1.2, 1.2]} />
+      <meshStandardMaterial 
+        map={goldTexture}
+        color="#fcd34d" 
+        metalness={0.8} 
+        roughness={0.2} 
+        emissive="#fcd34d" 
+        emissiveIntensity={0.3} 
+      />
+      
+      <Text
+        position={[0, 0, 0.61]}
+        fontSize={0.8}
+        color="black"
+        fontWeight="bold"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {data.letter}
+      </Text>
+      <Text
+        position={[0, 0, -0.61]}
+        rotation={[0, Math.PI, 0]}
+        fontSize={0.8}
+        color="black"
+        fontWeight="bold"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {data.letter}
+      </Text>
+    </mesh>
+  );
+}
 
 export function LetterCube({ data }: { data: LetterData }) {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -44,32 +84,9 @@ export function LetterCube({ data }: { data: LetterData }) {
           }}
         >
           {/* Main Cube */}
-          <mesh ref={meshRef}>
-            <boxGeometry args={[1.2, 1.2, 1.2]} />
-            <meshStandardMaterial color="#fcd34d" metalness={0.6} roughness={0.4} emissive="#fcd34d" emissiveIntensity={0.2} />
-            
-            <Text
-              position={[0, 0, 0.61]}
-              fontSize={0.8}
-              color="black"
-              fontWeight="bold"
-              anchorX="center"
-              anchorY="middle"
-            >
-              {data.letter}
-            </Text>
-            <Text
-              position={[0, 0, -0.61]}
-              rotation={[0, Math.PI, 0]}
-              fontSize={0.8}
-              color="black"
-              fontWeight="bold"
-              anchorX="center"
-              anchorY="middle"
-            >
-              {data.letter}
-            </Text>
-          </mesh>
+          <Suspense fallback={<mesh><boxGeometry args={[1.2, 1.2, 1.2]} /><meshStandardMaterial color="#fcd34d" /></mesh>}>
+            <LetterModel data={data} meshRef={meshRef} />
+          </Suspense>
           
           {/* Floating Letter Above */}
           <Text

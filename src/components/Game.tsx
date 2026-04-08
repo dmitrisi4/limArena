@@ -17,6 +17,7 @@ import { useGameStore } from '../store';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useShallow } from 'zustand/react/shallow';
 import { useIsMobile } from '../lib/useIsMobile';
+import { Sky, Stars, Cloud, Float } from '@react-three/drei';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
@@ -65,22 +66,75 @@ function GameScene({ isMobile }: { isMobile: boolean }) {
 
   return (
     <>
-      <color attach="background" args={['#050510']} />
-      <fogExp2 attach="fog" args={['#050510', isMobile ? 0.05 : 0.025]} />
+      <color attach="background" args={['#87ceeb']} />
       
-      <ambientLight intensity={isMobile ? 1.0 : 0.8} />
-      <pointLight position={[0, 15, 0]} intensity={2.5} distance={150} />
+      {/* Stylized Sky */}
+      <Sky 
+        distance={450000} 
+        sunPosition={[100, 10, 100]} 
+        inclination={0} 
+        azimuth={0.25} 
+      />
+      
+      <Stars 
+        radius={100} 
+        depth={50} 
+        count={5000} 
+        factor={4} 
+        saturation={0} 
+        fade 
+        speed={1} 
+      />
+
+      {/* Floating Stylized Clouds */}
+      {!isMobile && (
+        <group>
+          <Float speed={1} rotationIntensity={0.2} floatIntensity={0.5}>
+            <Cloud position={[-20, 15, -20]} speed={0.2} opacity={0.5} segments={20} />
+          </Float>
+          <Float speed={1.5} rotationIntensity={0.1} floatIntensity={0.8}>
+            <Cloud position={[30, 20, 10]} speed={0.1} opacity={0.3} segments={15} />
+          </Float>
+          <Float speed={0.8} rotationIntensity={0.3} floatIntensity={0.4}>
+            <Cloud position={[-40, 18, 30]} speed={0.15} opacity={0.4} segments={25} />
+          </Float>
+        </group>
+      )}
+
+      <fogExp2 attach="fog" args={['#87ceeb', isMobile ? 0.01 : 0.005]} />
+      
+      {/* Improved Lighting */}
+      <ambientLight intensity={1.2} color="#ffffff" />
+      <directionalLight 
+        position={[100, 100, 50]} 
+        intensity={2} 
+        color="#fff5e6" 
+      />
+      <pointLight position={[0, 15, 0]} intensity={1.5} distance={150} color="#ffffff" />
       
       <Physics gravity={[0, -20, 0]}>
-        <Arena />
-        <NPC />
-        <Player />
-        <Enemies />
-        <OtherPlayers />
-        <Letters />
+        <Suspense fallback={null}>
+          <Arena />
+          <NPC />
+          <Player />
+          <Enemies />
+          <OtherPlayers />
+          <Letters />
+        </Suspense>
       </Physics>
       
       <Effects />
+
+      {!isMobile && (
+        <EffectComposer>
+          <Bloom 
+            luminanceThreshold={1} 
+            mipmapBlur 
+            intensity={0.5} 
+            radius={0.4} 
+          />
+        </EffectComposer>
+      )}
     </>
   );
 }

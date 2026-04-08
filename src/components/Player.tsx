@@ -6,7 +6,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { RigidBody, RapierRigidBody, useRapier, CapsuleCollider } from '@react-three/rapier';
-import { PointerLockControls } from '@react-three/drei';
+import { PointerLockControls, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameStore } from '../store';
 
@@ -17,6 +17,7 @@ export function Player() {
   const body = useRef<RapierRigidBody>(null);
   const { camera } = useThree();
   const { rapier, world } = useRapier();
+  const metalTexture = useTexture('https://picsum.photos/seed/stylized-metal/512/512');
   
   const keys = useRef({ 
     w: false, a: false, s: false, d: false,
@@ -240,7 +241,7 @@ export function Player() {
           {/* Main body */}
           <mesh position={[0, 0, 0.1]}>
             <boxGeometry args={[0.12, 0.18, 0.5]} />
-            <meshStandardMaterial color="#222" metalness={0.8} roughness={0.2} />
+            <meshStandardMaterial map={metalTexture} color="#222" metalness={0.8} roughness={0.2} />
           </mesh>
 
           {/* Glowing Accents */}

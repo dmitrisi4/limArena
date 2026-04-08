@@ -8,7 +8,7 @@ import { useFrame } from '@react-three/fiber';
 import { RigidBody, RapierRigidBody, CapsuleCollider } from '@react-three/rapier';
 import * as THREE from 'three';
 import { useGameStore } from '../store';
-import { Text } from '@react-three/drei';
+import { Text, useTexture } from '@react-three/drei';
 
 import { useShallow } from 'zustand/react/shallow';
 
@@ -16,6 +16,7 @@ export function OtherPlayer({ id }: { id: string }) {
   const data = useGameStore(useShallow(state => state.otherPlayers[id]));
   const body = useRef<RapierRigidBody>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const metalTexture = useTexture('https://picsum.photos/seed/stylized-metal/512/512');
 
   useFrame((_, delta) => {
     if (!body.current || !data) return;
@@ -59,6 +60,7 @@ export function OtherPlayer({ id }: { id: string }) {
         <mesh castShadow position={[0, 1, 0]}>
           <capsuleGeometry args={[0.5, 1]} />
           <meshStandardMaterial 
+            map={metalTexture}
             color={color} 
             roughness={0.3} 
             metalness={0.8} 

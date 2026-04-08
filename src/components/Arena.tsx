@@ -25,13 +25,17 @@ const rng = mulberry32(12345);
 
 const BOX_GEOM = new THREE.BoxGeometry(1, 1, 1);
 const CYLINDER_GEOM = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
-const OBSTACLE_MAT = new THREE.MeshStandardMaterial({ color: "#1a1a2e", roughness: 0.6, metalness: 0.5 });
-const NEON_MAT_CYAN = new THREE.MeshBasicMaterial({ color: "#00ffff", toneMapped: false });
-const NEON_MAT_MAGENTA = new THREE.MeshBasicMaterial({ color: "#ff00ff", toneMapped: false });
 
 export function Arena() {
   const isMobile = useIsMobile();
   
+  const grassTexture = useTexture('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/terrain/grasslight-big.jpg');
+  grassTexture.wrapS = grassTexture.wrapT = THREE.RepeatWrapping;
+  grassTexture.repeat.set(10, 10);
+
+  const woodTexture = useTexture('https://picsum.photos/seed/stylized-wood/512/512');
+  woodTexture.wrapS = woodTexture.wrapT = THREE.RepeatWrapping;
+
   const obstacles = useMemo(() => {
     const count = isMobile ? 5 : 12; // Minimum for stability
     const rngLocal = mulberry32(12345);
@@ -58,10 +62,14 @@ export function Arena() {
       <RigidBody type="fixed" name="floor" friction={0}>
         <mesh position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[200, 200]} />
-          <meshStandardMaterial color="#050510" roughness={0.2} metalness={0.8} />
+          <meshStandardMaterial 
+            map={grassTexture} 
+            color="#4a7a4a" 
+            roughness={0.8} 
+            metalness={0.1} 
+          />
         </mesh>
       </RigidBody>
-      {!isMobile && <Grid position={[0, -0.49, 0]} args={[200, 200]} cellColor="#ff00ff" sectionColor="#00ffff" fadeDistance={100} cellThickness={0.5} sectionThickness={1.5} />}
 
       {/* Safe Zone / City */}
       <CityFence radius={SAFE_ZONE_RADIUS} />
@@ -97,12 +105,17 @@ export function Arena() {
           >
             <mesh receiveShadow={false} castShadow={false} scale={obs.size as [number, number, number]}>
               <primitive object={obs.type === 'box' ? BOX_GEOM : CYLINDER_GEOM} attach="geometry" />
-              <primitive object={OBSTACLE_MAT} attach="material" />
+              <meshStandardMaterial 
+                map={woodTexture} 
+                color="#8b5a2b" 
+                roughness={0.8} 
+                metalness={0.1} 
+              />
               
               {/* Neon accent on obstacles */}
               <mesh position={[0, 0.45, 0]} scale={[1.05, 0.05, 1.05]}>
                 <primitive object={obs.type === 'box' ? BOX_GEOM : CYLINDER_GEOM} attach="geometry" />
-                <primitive object={obs.color === 'cyan' ? NEON_MAT_CYAN : NEON_MAT_MAGENTA} attach="material" />
+                <meshBasicMaterial color={obs.color === 'cyan' ? "#00ffff" : "#ff00ff"} toneMapped={false} />
               </mesh>
             </mesh>
           </RigidBody>
@@ -113,12 +126,21 @@ export function Arena() {
 }
 
 function Wall({ name, position, rotation, isMobile }: { name: string, position: [number, number, number], rotation: [number, number, number], isMobile: boolean }) {
+  const stoneTexture = useTexture('https://picsum.photos/seed/stylized-stone/512/512');
+  stoneTexture.wrapS = stoneTexture.wrapT = THREE.RepeatWrapping;
+  stoneTexture.repeat.set(4, 1);
+
   return (
     <RigidBody type="fixed" name={name} position={position} rotation={rotation}>
       {/* Solid Wall */}
       <mesh>
         <boxGeometry args={[200, 10, 1]} />
-        <meshStandardMaterial color="#0a0a1a" roughness={0.8} metalness={0.2} />
+        <meshStandardMaterial 
+          map={stoneTexture}
+          color="#555" 
+          roughness={0.9} 
+          metalness={0.1} 
+        />
       </mesh>
       {/* Glowing Base Line */}
       <mesh position={[0, -4.5, 0.51]}>
@@ -137,8 +159,11 @@ function Wall({ name, position, rotation, isMobile }: { name: string, position: 
 function CityFence({ radius }: { radius: number }) {
   const segments = 16;
   const height = 4;
-  const thickness = 1;
+  const thickness = 1.2;
   const angleStep = (Math.PI * 2) / segments;
+  
+  const stoneTexture = useTexture('https://picsum.photos/seed/stylized-stone-wall/512/512');
+  stoneTexture.wrapS = stoneTexture.wrapT = THREE.RepeatWrapping;
 
   return (
     <group>
@@ -160,9 +185,19 @@ function CityFence({ radius }: { radius: number }) {
 
         return (
           <RigidBody key={i} type="fixed">
-            <mesh position={[x + dx / 2, height / 2, z + dz / 2]} rotation={[0, -wallAngle, 0]}>
+            <mesh position={[x + dx / 2, height / 2 - 0.5, z + dz / 2]} rotation={[0, -wallAngle, 0]}>
               <boxGeometry args={[length, height, thickness]} />
-              <meshStandardMaterial color="#58cc02" emissive="#58cc02" emissiveIntensity={0.2} transparent opacity={0.6} />
+              <meshStandardMaterial 
+                map={stoneTexture}
+                color="#777" 
+                roughness={0.9} 
+                metalness={0.1} 
+              />
+              {/* Glowing top edge */}
+              <mesh position={[0, height / 2, 0]}>
+                <boxGeometry args={[length, 0.1, thickness + 0.1]} />
+                <meshBasicMaterial color="#58cc02" toneMapped={false} />
+              </mesh>
             </mesh>
           </RigidBody>
         );
@@ -175,9 +210,9 @@ function CityFence({ radius }: { radius: number }) {
 }
 
 function CityFloor({ radius }: { radius: number }) {
-  const texture = useTexture('https://picsum.photos/seed/metal/512/512');
+  const texture = useTexture('https://picsum.photos/seed/stylized-pavement/512/512');
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(4, 4);
+  texture.repeat.set(6, 6);
 
   return (
     <group>
@@ -185,21 +220,11 @@ function CityFloor({ radius }: { radius: number }) {
         <circleGeometry args={[radius, 32]} />
         <meshStandardMaterial 
           map={texture}
-          color="#2a2a4e" 
-          roughness={0.4} 
-          metalness={0.6} 
+          color="#888" 
+          roughness={0.6} 
+          metalness={0.2} 
         />
       </mesh>
-      {/* Small grid inside city for detail */}
-      <Grid 
-        position={[0, -0.47, 0]} 
-        args={[radius * 2, radius * 2]} 
-        cellColor="#58cc02" 
-        sectionColor="#58cc02" 
-        fadeDistance={radius * 2} 
-        cellThickness={0.2} 
-        sectionThickness={0.5} 
-      />
     </group>
   );
 }

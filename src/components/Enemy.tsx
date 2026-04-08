@@ -9,7 +9,7 @@ import { RigidBody, RapierRigidBody, useRapier, CapsuleCollider } from '@react-t
 import * as THREE from 'three';
 import { useShallow } from 'zustand/react/shallow';
 import { useGameStore, EnemyData } from '../store';
-import { Text } from '@react-three/drei';
+import { Text, useTexture } from '@react-three/drei';
 
 const ENEMY_SPEED = 3;
 const CHASE_DIST = 15; // Reduced from 20
@@ -18,6 +18,7 @@ const SHOOT_COOLDOWN = 3500; // Increased from 2000 for less aggressive shooting
 
 function RobotModel({ color, isAggro, isDisabled }: { color: string, isAggro: boolean, isDisabled: boolean }) {
   const group = useRef<THREE.Group>(null);
+  const metalTexture = useTexture('https://picsum.photos/seed/stylized-metal/512/512');
   
   useFrame((state) => {
     if (group.current) {
@@ -33,7 +34,7 @@ function RobotModel({ color, isAggro, isDisabled }: { color: string, isAggro: bo
       {/* Head */}
       <mesh position={[0, 1.5, 0]}>
         <sphereGeometry args={[0.4, 16, 16]} />
-        <meshStandardMaterial color={color} roughness={0.3} metalness={0.8} />
+        <meshStandardMaterial map={metalTexture} color={color} roughness={0.3} metalness={0.8} />
       </mesh>
       
       {/* Visor/Eyes */}
@@ -45,7 +46,7 @@ function RobotModel({ color, isAggro, isDisabled }: { color: string, isAggro: bo
       {/* Body/Torso */}
       <mesh position={[0, 0.9, 0]}>
         <cylinderGeometry args={[0.3, 0.5, 0.8, 6]} />
-        <meshStandardMaterial color={color} roughness={0.3} metalness={0.8} />
+        <meshStandardMaterial map={metalTexture} color={color} roughness={0.3} metalness={0.8} />
       </mesh>
 
       {/* Shoulders/Arms */}
@@ -62,11 +63,11 @@ function RobotModel({ color, isAggro, isDisabled }: { color: string, isAggro: bo
         {/* Hands/Cannons */}
         <mesh position={[0.8, -0.2, 0.2]}>
           <boxGeometry args={[0.2, 0.2, 0.4]} />
-          <meshStandardMaterial color="#111" metalness={1} />
+          <meshStandardMaterial map={metalTexture} color="#111" metalness={1} />
         </mesh>
         <mesh position={[-0.8, -0.2, 0.2]}>
           <boxGeometry args={[0.2, 0.2, 0.4]} />
-          <meshStandardMaterial color="#111" metalness={1} />
+          <meshStandardMaterial map={metalTexture} color="#111" metalness={1} />
         </mesh>
       </group>
 
