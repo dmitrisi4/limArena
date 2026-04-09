@@ -29,15 +29,42 @@ const CYLINDER_GEOM = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
 export function Arena() {
   const isMobile = useIsMobile();
   
+  // Load basic textures
   const grassTexture = useTexture('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/terrain/grasslight-big.jpg');
-  grassTexture.wrapS = grassTexture.wrapT = THREE.RepeatWrapping;
-  grassTexture.repeat.set(10, 10);
-
   const woodTexture = useTexture('https://picsum.photos/seed/stylized-wood/512/512');
-  woodTexture.wrapS = woodTexture.wrapT = THREE.RepeatWrapping;
+  const cityFloorTexture = useTexture('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/mossy_cobblestone/mossy_cobblestone_diff_1k.jpg');
+
+  // Load PBR wall textures
+  const wallBase = useTexture('/wall_basecolor.png');
+  const wallNormal = useTexture('/wall_normal.png');
+  const wallRough = useTexture('/wall_rough.png');
+  const wallAO = useTexture('/wall_ambientOcclusion.png');
+  const wallHeight = useTexture('/wall_height.png');
+
+  const wallMaps = useMemo(() => ({
+    map: wallBase,
+    normalMap: wallNormal,
+    roughnessMap: wallRough,
+    aoMap: wallAO,
+    displacementMap: wallHeight,
+  }), [wallBase, wallNormal, wallRough, wallAO, wallHeight]);
+
+  // Configure textures
+  useMemo(() => {
+    [grassTexture, woodTexture, cityFloorTexture, wallBase, wallNormal, wallRough, wallAO, wallHeight].forEach(t => {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    });
+    grassTexture.repeat.set(10, 10);
+    cityFloorTexture.repeat.set(6, 6);
+    
+    // Default repeat for walls
+    [wallBase, wallNormal, wallRough, wallAO, wallHeight].forEach(t => {
+      t.repeat.set(4, 2);
+    });
+  }, [grassTexture, woodTexture, cityFloorTexture, wallBase, wallNormal, wallRough, wallAO, wallHeight]);
 
   const obstacles = useMemo(() => {
-    const count = isMobile ? 5 : 12; // Minimum for stability
+    const count = isMobile ? 5 : 12;
     const rngLocal = mulberry32(12345);
     return Array.from({ length: count }).map(() => {
       const type = 'box';
@@ -62,17 +89,12 @@ export function Arena() {
       <RigidBody type="fixed" name="floor" friction={0}>
         <mesh position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[200, 200]} />
-          <meshStandardMaterial 
-            map={grassTexture} 
-            color="#4a7a4a" 
-            roughness={0.8} 
-            metalness={0.1} 
-          />
+          <meshStandardMaterial map={grassTexture} color="#4a7a4a" roughness={0.8} />
         </mesh>
       </RigidBody>
 
       {/* Safe Zone / City */}
-      <CityFence radius={SAFE_ZONE_RADIUS} />
+      <CityFence radius={SAFE_ZONE_RADIUS} wallMaps={wallMaps} floorTexture={cityFloorTexture} />
 
       {/* Ceiling */}
       <RigidBody type="fixed" name="ceiling">
@@ -82,14 +104,11 @@ export function Arena() {
         </mesh>
       </RigidBody>
 
-      {/* Atmosphere */}
-      {/* Atmosphere disabled for stability */}
-
       {/* Walls */}
-      <Wall name="wall-n" position={[0, 5, -100]} rotation={[0, 0, 0]} isMobile={isMobile} />
-      <Wall name="wall-s" position={[0, 5, 100]} rotation={[0, Math.PI, 0]} isMobile={isMobile} />
-      <Wall name="wall-e" position={[100, 5, 0]} rotation={[0, -Math.PI / 2, 0]} isMobile={isMobile} />
-      <Wall name="wall-w" position={[-100, 5, 0]} rotation={[0, Math.PI / 2, 0]} isMobile={isMobile} />
+      <Wall name="wall-n" position={[0, 5, -100]} rotation={[0, 0, 0]} maps={wallMaps} />
+      <Wall name="wall-s" position={[0, 5, 100]} rotation={[0, Math.PI, 0]} maps={wallMaps} />
+      <Wall name="wall-e" position={[100, 5, 0]} rotation={[0, -Math.PI / 2, 0]} maps={wallMaps} />
+      <Wall name="wall-w" position={[-100, 5, 0]} rotation={[0, Math.PI / 2, 0]} maps={wallMaps} />
 
       {/* Obstacles */}
       {obstacles.map((obs, i) => {
@@ -104,17 +123,12 @@ export function Arena() {
             rotation={obs.rotation as [number, number, number]}
           >
             <mesh receiveShadow={false} castShadow={false} scale={obs.size as [number, number, number]}>
-              <primitive object={obs.type === 'box' ? BOX_GEOM : CYLINDER_GEOM} attach="geometry" />
-              <meshStandardMaterial 
-                map={woodTexture} 
-                color="#8b5a2b" 
-                roughness={0.8} 
-                metalness={0.1} 
-              />
+              <boxGeometry args={[1, 1, 1]} />
+              <meshStandardMaterial map={woodTexture} color="#8b5a2b" roughness={0.8} />
               
               {/* Neon accent on obstacles */}
               <mesh position={[0, 0.45, 0]} scale={[1.05, 0.05, 1.05]}>
-                <primitive object={obs.type === 'box' ? BOX_GEOM : CYLINDER_GEOM} attach="geometry" />
+                <boxGeometry args={[1, 1, 1]} />
                 <meshBasicMaterial color={obs.color === 'cyan' ? "#00ffff" : "#ff00ff"} toneMapped={false} />
               </mesh>
             </mesh>
@@ -125,29 +139,33 @@ export function Arena() {
   );
 }
 
-function Wall({ name, position, rotation, isMobile }: { name: string, position: [number, number, number], rotation: [number, number, number], isMobile: boolean }) {
-  const stoneTexture = useTexture('https://picsum.photos/seed/stylized-stone/512/512');
-  stoneTexture.wrapS = stoneTexture.wrapT = THREE.RepeatWrapping;
-  stoneTexture.repeat.set(4, 1);
+function Wall({ name, position, rotation, maps }: { name: string, position: [number, number, number], rotation: [number, number, number], maps: any }) {
+  const clonedMaps = useMemo(() => {
+    const newMaps: any = {};
+    Object.entries(maps).forEach(([key, tex]: [string, any]) => {
+      const clone = tex.clone();
+      clone.wrapS = clone.wrapT = THREE.RepeatWrapping;
+      clone.repeat.set(20, 1);
+      newMaps[key] = clone;
+    });
+    return newMaps;
+  }, [maps]);
 
   return (
     <RigidBody type="fixed" name={name} position={position} rotation={rotation}>
-      {/* Solid Wall */}
       <mesh>
-        <boxGeometry args={[200, 10, 1]} />
+        <boxGeometry args={[200, 10, 1, 128, 16, 1]} />
         <meshStandardMaterial 
-          map={stoneTexture}
-          color="#555" 
-          roughness={0.9} 
-          metalness={0.1} 
+          {...clonedMaps}
+          color="#ffffff" 
+          displacementScale={0.2}
+          roughness={1} 
         />
       </mesh>
-      {/* Glowing Base Line */}
       <mesh position={[0, -4.5, 0.51]}>
         <planeGeometry args={[200, 1]} />
         <meshBasicMaterial color="#ff00ff" toneMapped={false} />
       </mesh>
-      {/* Glowing Top Line */}
       <mesh position={[0, 4.5, 0.51]}>
         <planeGeometry args={[200, 1]} />
         <meshBasicMaterial color="#00ffff" toneMapped={false} />
@@ -156,20 +174,16 @@ function Wall({ name, position, rotation, isMobile }: { name: string, position: 
   );
 }
 
-function CityFence({ radius }: { radius: number }) {
+function CityFence({ radius, wallMaps, floorTexture }: { radius: number, wallMaps: any, floorTexture: THREE.Texture }) {
   const segments = 16;
   const height = 4;
   const thickness = 1.2;
   const angleStep = (Math.PI * 2) / segments;
   
-  const stoneTexture = useTexture('https://picsum.photos/seed/stylized-stone-wall/512/512');
-  stoneTexture.wrapS = stoneTexture.wrapT = THREE.RepeatWrapping;
-
   return (
     <group>
       {Array.from({ length: segments }).map((_, i) => {
         const angle = i * angleStep;
-        // Leave a gap for entrance
         if (i === 0 || i === 1) return null;
         
         const x = Math.cos(angle) * radius;
@@ -186,35 +200,28 @@ function CityFence({ radius }: { radius: number }) {
         return (
           <RigidBody key={i} type="fixed">
             <mesh position={[x + dx / 2, height / 2 - 0.5, z + dz / 2]} rotation={[0, -wallAngle, 0]}>
-              <boxGeometry args={[length, height, thickness]} />
+              <boxGeometry args={[length, height, thickness, 32, 32, 1]} />
               <meshStandardMaterial 
-                map={stoneTexture}
-                color="#777" 
-                roughness={0.9} 
-                metalness={0.1} 
+                {...wallMaps}
+                color="#ffffff" 
+                displacementScale={0.1}
+                roughness={1} 
               />
-              {/* Glowing top edge */}
               <mesh position={[0, height / 2, 0]}>
                 <boxGeometry args={[length, 0.1, thickness + 0.1]} />
-                <meshBasicMaterial color="#58cc02" toneMapped={false} />
+                <meshBasicMaterial color="#4ade80" toneMapped={false} />
               </mesh>
             </mesh>
           </RigidBody>
         );
       })}
       
-      {/* City Floor */}
-      <CityFloor radius={radius} />
+      <CityFloor radius={radius} texture={floorTexture} />
     </group>
   );
 }
 
-function CityFloor({ radius }: { radius: number }) {
-  // Using a reliable high-quality mossy cobblestone texture from Polyhaven
-  const texture = useTexture('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/mossy_cobblestone/mossy_cobblestone_diff_1k.jpg');
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(6, 6);
-
+function CityFloor({ radius, texture }: { radius: number, texture: THREE.Texture }) {
   return (
     <group>
       <mesh position={[0, -0.48, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -223,100 +230,9 @@ function CityFloor({ radius }: { radius: number }) {
           map={texture}
           color="#ffffff" 
           roughness={0.9} 
-          metalness={0.1} 
         />
       </mesh>
     </group>
   );
 }
 
-function AmbientParticles() {
-  const count = 800;
-  const pointsRef = useRef<THREE.Points>(null);
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
-
-  const [positions, sizes] = useMemo(() => {
-    const positions = new Float32Array(count * 3);
-    const sizes = new Float32Array(count);
-    for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 1000;
-      positions[i * 3 + 1] = Math.random() * 40;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 1000;
-      sizes[i] = Math.random() * 0.8 + 0.4; // Smaller particles
-    }
-    return [positions, sizes];
-  }, []);
-
-  const uniforms = useMemo(() => ({
-    uTime: { value: 0 },
-    uColor: { value: new THREE.Color('#ffffff') } // White color
-  }), []);
-
-  useFrame((state) => {
-    if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
-    }
-  });
-
-  return (
-    <points ref={pointsRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={count}
-          array={positions}
-          itemSize={3}
-        />
-        <bufferAttribute
-          attach="attributes-aSize"
-          count={count}
-          array={sizes}
-          itemSize={1}
-        />
-      </bufferGeometry>
-      <shaderMaterial
-        ref={materialRef}
-        transparent
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-        uniforms={uniforms}
-        vertexShader={`
-          uniform float uTime;
-          attribute float aSize;
-          varying float vAlpha;
-          void main() {
-            vec3 pos = position;
-            // Slow upward drift and wobble
-            pos.y += uTime * 0.5;
-            pos.x += sin(uTime * 0.2 + pos.y) * 2.0;
-            pos.z += cos(uTime * 0.2 + pos.y) * 2.0;
-            
-            // Wrap around Y
-            pos.y = mod(pos.y, 40.0);
-            
-            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-            gl_Position = projectionMatrix * mvPosition;
-            
-            // Size attenuation
-            gl_PointSize = aSize * (300.0 / -mvPosition.z);
-            
-            // Fade out near top and bottom
-            vAlpha = smoothstep(0.0, 5.0, pos.y) * smoothstep(40.0, 35.0, pos.y);
-          }
-        `}
-        fragmentShader={`
-          uniform vec3 uColor;
-          varying float vAlpha;
-          void main() {
-            // Distance from center of point
-            float d = length(gl_PointCoord - vec2(0.5));
-            // Soft circle using smoothstep
-            float alpha = smoothstep(0.5, 0.1, d) * 0.5 * vAlpha;
-            if (alpha < 0.01) discard;
-            gl_FragColor = vec4(uColor, alpha);
-          }
-        `}
-      />
-    </points>
-  );
-}

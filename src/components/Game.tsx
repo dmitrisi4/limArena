@@ -54,7 +54,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   }
 }
 
-function GameScene({ isMobile }: { isMobile: boolean }) {
+function GameLogic() {
   useFrame((_, delta) => {
     const state = useGameStore.getState();
     if (state.gameState !== 'playing') return;
@@ -63,9 +63,13 @@ function GameScene({ isMobile }: { isMobile: boolean }) {
     state.updateEnemies(now);
     state.cleanupEffects(now);
   });
+  return null;
+}
 
+function GameScene({ isMobile }: { isMobile: boolean }) {
   return (
     <>
+      <GameLogic />
       <color attach="background" args={['#87ceeb']} />
       
       {/* Stylized Sky */}
@@ -113,28 +117,15 @@ function GameScene({ isMobile }: { isMobile: boolean }) {
       <pointLight position={[0, 15, 0]} intensity={1.5} distance={150} color="#ffffff" />
       
       <Physics gravity={[0, -20, 0]}>
-        <Suspense fallback={null}>
-          <Arena />
-          <NPC />
-          <Player />
-          <Enemies />
-          <OtherPlayers />
-          <Letters />
-        </Suspense>
+        <Arena />
+        <NPC />
+        <Player />
+        <Enemies />
+        <OtherPlayers />
+        <Letters />
       </Physics>
       
       <Effects />
-
-      {!isMobile && (
-        <EffectComposer>
-          <Bloom 
-            luminanceThreshold={1} 
-            mipmapBlur 
-            intensity={0.5} 
-            radius={0.4} 
-          />
-        </EffectComposer>
-      )}
     </>
   );
 }
@@ -181,16 +172,10 @@ export function Game() {
       shadows={false} 
       camera={{ fov: 75 }}
       dpr={1}
-      gl={{ 
-        antialias: false, 
-        powerPreference: "high-performance",
-        alpha: false,
-        stencil: false,
-        depth: true,
-        preserveDrawingBuffer: false
-      }}
     >
-      <GameScene isMobile={isMobile} />
+      <Suspense fallback={null}>
+        <GameScene isMobile={isMobile} />
+      </Suspense>
     </Canvas>
   );
 }
